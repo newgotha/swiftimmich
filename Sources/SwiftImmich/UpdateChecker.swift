@@ -44,8 +44,11 @@ struct ReleaseInfo: Equatable {
     let version: AppVersion
     let notes: String
     let pageURL: URL
-    /// The disk image (or zip) attached to the release, if there is one.
+    /// The disk image (or zip) attached to the release, if there is one — for downloading by hand.
     let downloadURL: URL?
+    /// What an in-app update installs: the zip, checked against `SHA256SUMS.txt`.
+    var zipURL: URL? = nil
+    var checksumsURL: URL? = nil
 }
 
 enum UpdateResult: Equatable {
@@ -67,6 +70,8 @@ final class UpdateChecker {
 
     private init() {}
 
+    private var installer: UpdateInstaller?
+
     // MARK: - Fetching
 
     /// Turns GitHub's "latest release" reply into a `ReleaseInfo`. Drafts and pre-releases
@@ -87,7 +92,9 @@ final class UpdateChecker {
             version: version,
             notes: (json["body"] as? String) ?? "",
             pageURL: page,
-            downloadURL: asset(ending: ".dmg") ?? asset(ending: ".zip")
+            downloadURL: asset(ending: ".dmg") ?? asset(ending: ".zip"),
+            zipURL: asset(ending: ".zip"),
+            checksumsURL: asset(ending: "sha256sums.txt")
         )
     }
 
@@ -143,12 +150,20 @@ final class UpdateChecker {
         alert.messageText = "SwiftImmich \(release.version) is available"
         let notes = release.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         alert.informativeText = "You have \(AppInfo.version)." + (notes.isEmpty ? "" : "\n\n" + String(notes.prefix(600)))
-        alert.addButton(withTitle: "Download")
+        // With a zip attached the app can install the update itself, with no Gatekeeper prompt.
+        let canInstall = release.zipURL != nil && Bundle.main.bundleURL.pathExtension == "app"
+        alert.addButton(withTitle: canInstall ? "Install and Restart" : "Download")
         alert.addButton(withTitle: "Not Now")
         if allowSkip { alert.addButton(withTitle: "Skip This Version") }
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            NSWorkspace.shared.open(release.downloadURL ?? release.pageURL)
+            if canInstall {
+                let installer = UpdateInstaller()
+                self.installer = installer
+                Task { await installer.install(release) }
+            } else {
+                NSWorkspace.shared.open(release.downloadURL ?? release.pageURL)
+            }
         case .alertThirdButtonReturn:
             UserDefaults.standard.set(release.version.description, forKey: Self.skippedKey)
         default:

@@ -304,6 +304,8 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(release.version, AppVersion("1.2.0"))
         XCTAssertEqual(release.notes, "Fixes and polish.")
         XCTAssertEqual(release.downloadURL?.absoluteString, "https://example.com/app.dmg", "the dmg is preferred over the zip")
+        XCTAssertEqual(release.zipURL?.absoluteString, "https://example.com/app.zip", "an in-app update installs the zip")
+        XCTAssertEqual(release.checksumsURL?.absoluteString, "https://example.com/sums")
         XCTAssertTrue(release.pageURL.absoluteString.hasSuffix("v1.2.0"))
     }
 

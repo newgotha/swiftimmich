@@ -23,6 +23,8 @@ Users get updates from GitHub Releases: the app checks the repository's **latest
 
    or create the release on github.com and upload the files from `dist/`.
 
+Installed copies then offer **Install and Restart**, which downloads the release's `.zip`, checks it against `SHA256SUMS.txt`, and swaps it in. So every release must include the `.zip` **and** `SHA256SUMS.txt` (the packaging script produces both). `Scripts/install.sh` installs the latest release for first-time users.
+
 The tag must look like `v1.2.3`, and the release must **not** be a draft or a pre-release, or the in-app update check ignores it.
 
 ## Notarization (optional)

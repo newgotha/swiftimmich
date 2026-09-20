@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- **Updates install themselves.** When a new version is available, **Install and Restart** downloads it, checks its checksum and signature, replaces the app and reopens it — with no macOS security prompt.
+- **One-line installer** (`Scripts/install.sh`) for the first install, which also avoids the "Open Anyway" step.
+
 ## 1.0.1
 
 - Servers reached over plain `http://` (for example `http://192.168.1.20:2283`) now work; macOS was blocking them. The connection form warns when an `http://` address is beyond your own network, and a server address typed without `https://` is assumed to be https.

@@ -21,16 +21,24 @@ A native macOS app for [Immich](https://immich.app), the self-hosted photo libra
 
 ## Install
 
-1. Download the latest `SwiftImmich-x.y.z.dmg` from the [Releases page](https://github.com/newgotha/swiftimmich/releases).
-2. Open it and drag **SwiftImmich** into **Applications**.
-3. **First launch:** the app isn't notarized by Apple (that requires a paid developer account), so macOS will refuse to open it the first time. Either:
-   - open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to SwiftImmich; or
-   - run `xattr -dr com.apple.quarantine /Applications/SwiftImmich.app` in Terminal.
-4. Click the server icon in the toolbar, enter your server address (for example `https://photos.example.com`) and your API key.
+**Recommended — one line in Terminal** (no macOS security prompt):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/newgotha/swiftimmich/main/Scripts/install.sh | bash
+```
+
+This downloads the latest release, checks its checksum, installs it in Applications and opens it. macOS only blocks apps that were downloaded by a *browser*, so an app fetched this way opens normally.
+
+**Or download it yourself:**
+
+1. Download the latest `SwiftImmich-x.y.z.dmg` from the [Releases page](https://github.com/newgotha/swiftimmich/releases), open it and drag **SwiftImmich** into **Applications**.
+2. Because the app isn't notarized by Apple (that needs a paid developer account) and a browser download is flagged, macOS will refuse to open it the first time. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to SwiftImmich (or run `xattr -dr com.apple.quarantine /Applications/SwiftImmich.app`).
+
+Then click the server icon in the toolbar and enter your server address (for example `https://photos.example.com`) and your API key.
 
 ## Updating
 
-SwiftImmich checks GitHub for a newer release about once a day and tells you when there is one (**SwiftImmich → Check for Updates…**, or **Settings → Updates**). To update, download the new version and replace the app in Applications — your settings and server connection are kept.
+SwiftImmich checks GitHub for a newer release about once a day (**SwiftImmich → Check for Updates…**, or **Settings → Updates**). When there is one, click **Install and Restart**: the app downloads the update, verifies it, replaces itself and reopens, with no security prompt. Your settings and server connection are kept.
 
 ## Good to know
 
