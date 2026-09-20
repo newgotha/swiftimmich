@@ -1,0 +1,22 @@
+# Build output
+.build/
+dist/
+*.xcodeproj/
+xcuserdata/
+.swiftpm/
+Scripts/AppIcon.icns
+
+# macOS
+.DS_Store
+
+# Local tooling and notes (not part of the app)
+.wolf/
+.claude/
+.codex/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+
+# Logs and crash reports
+*.log
+*.ips
