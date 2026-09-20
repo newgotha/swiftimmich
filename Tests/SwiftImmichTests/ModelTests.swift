@@ -322,3 +322,37 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(UpdateChecker.parse(json)?.downloadURL?.absoluteString, "https://example.com/a.zip")
     }
 }
+
+final class ServerAddressTests: XCTestCase {
+    func testAMissingSchemeBecomesHTTPS() {
+        XCTAssertEqual(ServerAddress.normalized("photos.example.com"), "https://photos.example.com")
+        XCTAssertEqual(ServerAddress.normalized("  https://photos.example.com/  "), "https://photos.example.com")
+        XCTAssertEqual(ServerAddress.normalized("http://192.168.1.20:2283"), "http://192.168.1.20:2283")
+        XCTAssertEqual(ServerAddress.normalized(""), "")
+    }
+
+    func testPlainHTTPToTheInternetIsFlaggedButHomeNetworksAreNot() {
+        XCTAssertTrue(ServerAddress.isInsecureRemote("http://immichcloud.example.net"))
+        XCTAssertTrue(ServerAddress.isInsecureRemote("http://8.8.8.8:2283"))
+        XCTAssertFalse(ServerAddress.isInsecureRemote("https://immichcloud.example.net"))
+        for local in ["http://192.168.1.20:2283", "http://10.0.0.5", "http://172.20.1.1", "http://localhost:2283",
+                      "http://nas:2283", "http://truenas.local", "http://169.254.1.1", "http://127.0.0.1:2283"] {
+            XCTAssertFalse(ServerAddress.isInsecureRemote(local), local)
+        }
+        XCTAssertTrue(ServerAddress.isInsecureRemote("http://172.32.0.1"), "172.32 is outside the private 172.16–31 range")
+    }
+
+    func testCommonNetworkFailuresReadInPlainEnglish() {
+        func text(_ code: Int) -> String { FriendlyError.message(for: NSError(domain: NSURLErrorDomain, code: code)) }
+        XCTAssertEqual(text(NSURLErrorNotConnectedToInternet), "You're offline.")
+        XCTAssertTrue(text(NSURLErrorCannotFindHost).contains("Couldn't find that server"))
+        XCTAssertTrue(text(NSURLErrorTimedOut).contains("too long"))
+        XCTAssertTrue(text(NSURLErrorServerCertificateUntrusted).contains("certificate"))
+        XCTAssertTrue(text(NSURLErrorAppTransportSecurityRequiresSecureConnection).contains("https://"))
+    }
+
+    func testServerRefusalsMentionTheAPIKey() {
+        let text = FriendlyError.message(for: ImmichServiceError.requestFailed(statusCode: 401, message: nil))
+        XCTAssertTrue(text.contains("API key"))
+    }
+}

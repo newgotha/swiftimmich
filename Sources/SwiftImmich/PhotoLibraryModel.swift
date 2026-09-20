@@ -72,7 +72,7 @@ final class PhotoLibraryModel: ObservableObject {
                 errorMessage = nil
                 return
             }
-            errorMessage = "Couldn't load your library: \(error)"
+            errorMessage = "Couldn't load your library.\n\(FriendlyError.message(for: error))"
         }
     }
 
@@ -94,7 +94,7 @@ final class PhotoLibraryModel: ObservableObject {
                 await retryLoadAssets(for: timeBucket)
                 return
             }
-            errorMessage = "Couldn't load photos for \(timeBucket): \(error)"
+            errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
         }
     }
 
@@ -105,7 +105,7 @@ final class PhotoLibraryModel: ObservableObject {
             errorMessage = nil
         } catch {
             guard !Self.isCancellation(error) else { return }
-            errorMessage = "Couldn't load photos for \(timeBucket): \(error)"
+            errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
         }
     }
 

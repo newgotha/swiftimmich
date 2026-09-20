@@ -35,6 +35,7 @@ SwiftImmich checks GitHub for a newer release about once a day and tells you whe
 ## Good to know
 
 - **Your API key** is stored in an encrypted file in `~/Library/Application Support/SwiftImmich`, readable only by your account, and is sent only to your server. The app has no analytics and talks to no server except yours (and GitHub for the update check).
+- **http:// servers** on your home network (for example `http://192.168.1.20:2283`) work. The connection form warns if you enter an `http://` address that isn't on your own network, because your API key would cross the internet unencrypted.
 - **Cloudflare** rejects any single upload over about 100 MB. If your server is behind it, add a direct address for large files under **Settings → Large files** (it only works on the same network as the server).
 - **Locked Folder**: Immich only shows locked photos to a signed-in session, so the app asks you to sign in once with your email and password. The password is never saved; only the resulting session is.
 - **Problems**: **Help → Show Error Log** reveals `~/Library/Logs/SwiftImmich.log`. Please include the relevant lines when you report a bug.

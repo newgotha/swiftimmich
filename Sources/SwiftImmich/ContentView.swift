@@ -407,6 +407,12 @@ struct ContentView: View {
             SecureField("API key", text: $apiKey)
                 .textFieldStyle(.roundedBorder)
 
+            if ServerAddress.isInsecureRemote(serverURLString) {
+                Label("http:// sends your API key across the internet unencrypted. Use https:// if your server supports it.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
             if let connectionError {
                 Text(connectionError)
                     .font(.caption)

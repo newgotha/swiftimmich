@@ -77,6 +77,14 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Self-hosted Immich servers are often reached over plain http:// on a home network,
+             at an address the app can't know in advance, so http:// is allowed. The connection
+             form warns when an http:// address points beyond your own network. -->
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
     <key>NSHumanReadableCopyright</key>
     <string>Released under the MIT License. Not affiliated with the Immich project.</string>
     <key>NSPhotoLibraryUsageDescription</key>

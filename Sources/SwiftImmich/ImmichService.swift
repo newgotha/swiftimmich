@@ -30,7 +30,7 @@ struct ImmichService {
     let sharing = SharingState()
 
     init(serverURLString: String, apiKey: String) throws {
-        let trimmed = serverURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = ServerAddress.normalized(serverURLString)
         guard let base = URL(string: trimmed), base.scheme != nil else {
             throw ImmichServiceError.invalidServerURL
         }
