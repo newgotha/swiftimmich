@@ -1,9 +1,8 @@
 name: Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # By hand for now; add push / pull_request triggers once a macOS 26 runner is confirmed.
+  workflow_dispatch:
 
 jobs:
   test:

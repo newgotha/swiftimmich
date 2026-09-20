@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  # Run by hand from the Actions tab (or re-enable the tag trigger below once the workflow
+  # has been proven on a macOS runner that has the macOS 26 SDK).
   workflow_dispatch:
+  # push:
+  #   tags: ['v*']
 
 permissions:
   contents: write

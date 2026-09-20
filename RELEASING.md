@@ -13,7 +13,7 @@ Users get updates from GitHub Releases: the app checks the repository's **latest
    git push && git push origin v1.0.1
    ```
 
-3. The **Release** workflow (`.github/workflows/release.yml`) builds a universal `.dmg` and `.zip` and attaches them to a new GitHub release, using the tag as the version. To build by hand instead:
+3. Build and publish the release. (The **Release** workflow in `.github/workflows/release.yml` can do this on GitHub, but it is set to run by hand only until it has been proven on a macOS runner that includes the macOS 26 SDK — to use it, run it from the Actions tab, or uncomment its `push: tags` trigger.) To build on your own Mac:
 
    ```bash
    Scripts/package_release.sh
