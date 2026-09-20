@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- The Storage page now sits in a centred card like the other tool pages.
+
 ## 1.0.2
 
 - **Updates install themselves.** When a new version is available, **Install and Restart** downloads it, checks its checksum and signature, replaces the app and reopens it — with no macOS security prompt.

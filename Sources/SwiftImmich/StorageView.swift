@@ -81,22 +81,13 @@ struct StorageView: View {
     private var selectedBytes: Int64 { scan.items.filter { selected.contains($0.id) }.reduce(0) { $0 + $1.bytes } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Storage")
-                .font(.title2.weight(.bold))
-                .padding(.leading, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    overview
-                    finder
-                    if !scan.items.isEmpty { results }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-                .frame(maxWidth: 760, alignment: .leading)
+        VStack(spacing: 0) {
+            CardPage(maxWidth: 720) {
+                Text("Storage")
+                    .font(.title2.weight(.semibold))
+                overview
+                finder
+                if !scan.items.isEmpty { results }
             }
 
             if !selected.isEmpty { actionBar }
@@ -135,8 +126,7 @@ struct StorageView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(white: 0.85)))
+        .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var finder: some View {
