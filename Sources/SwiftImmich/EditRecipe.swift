@@ -106,17 +106,14 @@ extension ImageAdjustments: Codable {
 }
 
 extension ImmichService {
-    /// Takes one photo out of a stack, leaving it in the library. Immich refuses to take a stack's cover
-    /// out, so for the cover the stack is dissolved and the other photos are grouped again without it.
-    func takeOutOfStack(assetId: String, stackId: String) async throws {
-        let stack = try await fetchStack(id: stackId)
-        guard stack.primaryAssetId == assetId else {
-            try await removeAsset(assetId, fromStack: stackId)
-            return
+    /// What to tell someone whose "remove from stack" was refused. Immich won't take a stack's cover
+    /// photo out of its stack, and its own message ("Cannot remove stack's primary asset") doesn't say what to do.
+    static func removeFromStackMessage(for error: Error) -> String {
+        if case ImmichServiceError.requestFailed(_, let message) = error, (message ?? "").lowercased().contains("primary asset") {
+            return "This photo is the cover of its stack, and Immich won't take a stack's cover out of the stack. "
+                + "Choose “Unstack All” to break the stack up instead."
         }
-        let remaining = stack.assets.map(\.id).filter { $0 != assetId }
-        try await deleteStacks(ids: [stackId])
-        if remaining.count >= 2 { try await createStackInfo(assetIds: remaining) }
+        return "Couldn't remove from the stack: \(AppLog.describe(error))"
     }
 
     /// Removes an edited copy and its stack membership, leaving the original as it was.

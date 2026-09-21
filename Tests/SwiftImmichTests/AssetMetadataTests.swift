@@ -146,3 +146,21 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(EditRecipe.key, "swiftimmich.edit.v1")
     }
 }
+
+
+final class StackMessageTests: XCTestCase {
+    func testRefusingTheCoverIsExplainedAndSaysWhatToDo() {
+        let refusal = ImmichServiceError.requestFailed(statusCode: 400, message: #"{"message":"Cannot remove stack's primary asset"}"#)
+        let text = ImmichService.removeFromStackMessage(for: refusal)
+        XCTAssertTrue(text.contains("cover of its stack"))
+        XCTAssertTrue(text.contains("Unstack All"))
+        XCTAssertFalse(text.contains("requestFailed"), "no raw error dump")
+    }
+
+    func testAnyOtherFailureKeepsItsDetails() {
+        let other = ImmichServiceError.requestFailed(statusCode: 500, message: "database exploded")
+        let text = ImmichService.removeFromStackMessage(for: other)
+        XCTAssertTrue(text.hasPrefix("Couldn't remove from the stack"))
+        XCTAssertTrue(text.contains("500"))
+    }
+}

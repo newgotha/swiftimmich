@@ -1768,7 +1768,7 @@ struct PhotoViewerView: View {
         Task {
             defer { isChangingState = false }
             do {
-                try await service.takeOutOfStack(assetId: targetId, stackId: stackId)
+                try await service.removeAsset(targetId, fromStack: stackId)
                 NotificationCenter.default.post(name: .gridNeedsReload, object: nil)
                 // Only the viewer's own list drops it — the photo itself stays in the library.
                 guard let index = assets.firstIndex(where: { $0.id == targetId }) else { return }
@@ -1780,7 +1780,7 @@ struct PhotoViewerView: View {
                 resetPendingEditState()
                 await preload(newAsset)
             } catch {
-                albumActionMessage = "Couldn't remove from the stack: \(error)"
+                albumActionMessage = ImmichService.removeFromStackMessage(for: error)
             }
         }
     }
