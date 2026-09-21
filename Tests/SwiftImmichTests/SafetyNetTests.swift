@@ -7,6 +7,18 @@ import XCTest
 private enum GridFixtures {
     static let buckets = #"[{"timeBucket":"2026-09-01T00:00:00.000Z","count":4}]"#
 
+    static var videoAssets: String {
+        let ids = (1...4).map { "\"video-\($0)\"" }.joined(separator: ",")
+        func column(_ value: String) -> String { "[" + Array(repeating: value, count: 4).joined(separator: ",") + "]" }
+        return """
+        {"id":[\(ids)],"isFavorite":\(column("false")),"isImage":\(column("false")),"isTrashed":\(column("false")),
+         "createdAt":\(column("\"2026-09-01T00:00:00.000Z\"")),"fileCreatedAt":\(column("\"2026-09-01T10:00:00.000Z\"")),
+         "duration":\(column("5000")),"livePhotoVideoId":\(column("null")),"localOffsetHours":\(column("0")),
+         "ownerId":\(column("\"me\"")),"projectionType":\(column("null")),"ratio":\(column("1.5")),
+         "thumbhash":\(column("null")),"visibility":\(column("\"timeline\"")),"stack":\(column("null"))}
+        """
+    }
+
     static var assets: String {
         let ids = (1...4).map { "\"asset-\($0)\"" }.joined(separator: ",")
         func column(_ value: String) -> String { "[" + Array(repeating: value, count: 4).joined(separator: ",") + "]" }
@@ -187,5 +199,75 @@ final class GridGuardrailTests: XCTestCase {
             let text = try String(contentsOf: sources.appendingPathComponent(name), encoding: .utf8)
             XCTAssertFalse(text.contains("@AppStorage"), "\(name) must not use @AppStorage — it made every grid redraw in a loop while a photo was open. Use an ObservableObject store instead.")
         }
+    }
+}
+
+
+/// The video controls (speed, save frame, trim) once sat under the viewer's full-window swipe
+/// catcher, which took every click. This opens a video in the real viewer and checks the catcher
+/// is not what a click on the controls would reach.
+@MainActor
+final class VideoControlsReachableTests: XCTestCase {
+    private var window: NSWindow?
+
+    override func setUpWithError() throws {
+        AppLog.url = FileManager.default.temporaryDirectory.appendingPathComponent("test-\(UUID().uuidString).log")
+        URLProtocol.registerClass(MockURLProtocol.self)
+        MockURLProtocol.captured = []
+        MockURLProtocol.handler = { request in
+            if request.path.hasSuffix("/timeline/buckets") { return (200, GridFixtures.buckets) }
+            if request.path.hasSuffix("/timeline/bucket") { return (200, GridFixtures.videoAssets) }
+            return (404, #"{"message":"not in this test"}"#)
+        }
+    }
+
+    override func tearDown() async throws {
+        window?.close()
+        URLProtocol.unregisterClass(MockURLProtocol.self)
+        MockURLProtocol.handler = nil
+    }
+
+    func testAClickOnTheVideoControlsDoesNotReachTheSwipeCatcher() async throws {
+        _ = NSApplication.shared
+        let service = try ImmichService(serverURLString: "https://immich.test", apiKey: "test-key")
+        let selection = GridSelection()
+        selection.service = service
+        let root = NavigationSplitView {
+            List { Label("Library", systemImage: "photo.on.rectangle") }.listStyle(.sidebar)
+        } detail: {
+            NavigationStack { PhotoGridView(service: service, filter: .locked) }
+        }
+        .environmentObject(ViewerTransition())
+        .environmentObject(selection)
+        .environmentObject(AlbumMembership())
+        .environmentObject(PeopleDirectory())
+        .environmentObject(SearchModel())
+        .environmentObject(TransferCenter())
+        .environmentObject(LockedFolderSession())
+
+        let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.setContentSize(NSSize(width: 1100, height: 720))
+        window.orderFrontRegardless()
+        self.window = window
+
+        try await Task.sleep(for: .seconds(2))
+        let entry = try XCTUnwrap(selection.layouts.values.first, "the grid never loaded")
+        XCTAssertFalse(entry.assets[0].isImage, "this test needs a video")
+        entry.activate(entry.assets[0])
+        try await Task.sleep(for: .seconds(2))
+
+        let frameView = try XCTUnwrap(window.contentView?.superview)
+        let size = window.contentView?.bounds.size ?? .zero
+        // The controls sit in the top-right corner, below the toolbar.
+        var hits: [NSView] = []
+        for x in stride(from: size.width - 330, through: size.width - 40, by: 30) {
+            for fromTop in stride(from: 90, through: 150, by: 10) {
+                if let hit = frameView.hitTest(NSPoint(x: x, y: size.height - CGFloat(fromTop))) { hits.append(hit) }
+            }
+        }
+        XCTAssertFalse(hits.isEmpty)
+        XCTAssertTrue(hits.contains { !($0 is TrackpadSwipeCatcher.CatcherView) },
+                      "every click near the video controls lands on the swipe catcher, so the controls can't be used")
     }
 }

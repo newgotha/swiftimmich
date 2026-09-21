@@ -497,6 +497,15 @@ struct PhotoViewerView: View {
                     FaceOverlayView(service: service, assetId: asset.id, size: renderedImageSize)
                 }
             }
+        } else if !asset.isImage, !isSlideshow {
+            // In this layer, above the full-window swipe catcher, so the controls get their clicks.
+            VStack {
+                HStack {
+                    Spacer()
+                    videoTools(for: asset)
+                }
+                Spacer()
+            }
         }
     }
 
@@ -771,7 +780,6 @@ struct PhotoViewerView: View {
             }
         } else {
             VideoPlayerView(request: service.videoPlaybackRequest(assetId: asset.id), controller: videoController)
-                .overlay(alignment: .topTrailing) { videoTools(for: asset) }
         }
     }
 
