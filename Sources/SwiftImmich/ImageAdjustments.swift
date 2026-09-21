@@ -14,7 +14,7 @@ struct ImageAdjustments: Equatable {
     /// The amounts Core Image's own scene analysis suggested for one specific photo,
     /// captured once when Auto Enhance is tapped so the intensity slider can rescale
     /// them without re-running the analysis on every drag tick.
-    struct AutoEnhance: Equatable {
+    struct AutoEnhance: Equatable, Codable {
         var vibrance: Double
         var shadow: Double
         var intensity: Double = 1

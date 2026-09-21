@@ -155,14 +155,14 @@ struct ImmichService {
     /// endpoint to replace an existing asset's original file content in place, so
     /// "replacing" an asset with a color-adjusted export means uploading it as a new
     /// asset and using this to carry its associations over before trashing the old one.
-    func copyAssetMetadata(sourceId: String, targetId: String) async throws {
+    func copyAssetMetadata(sourceId: String, targetId: String, copyStack: Bool = true) async throws {
         let response = try await client.copyAsset(.init(body: .json(.init(
             albums: true,
             favorite: true,
             sharedLinks: false,
             sidecar: false,
             sourceId: sourceId,
-            stack: true,
+            stack: copyStack,
             targetId: targetId
         ))))
         if case .undocumented(let statusCode, let payload) = response {

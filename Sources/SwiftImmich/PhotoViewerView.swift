@@ -60,6 +60,11 @@ struct PhotoViewerView: View {
     /// Whether the server holds crop / rotate / mirror edits for this photo.
     @State private var isServerEdited = false
     @State private var showRevertConfirmation = false
+    // Re-editing an edited copy: the recipe it was made from, and the original's picture to work from.
+    @State private var editRecipe: EditRecipe?
+    @State private var editBaseImage: NSImage?
+    @State private var recipeLoadedFor: String?
+    @State private var showRemoveEditConfirmation = false
     // Video tools
     @State private var videoController = VideoPlaybackController()
     @State private var videoSpeed: VideoSpeed = .normal
@@ -250,11 +255,13 @@ struct PhotoViewerView: View {
             isPresented: $showSaveChoiceDialog,
             titleVisibility: .visible
         ) {
-            Button("Save as New Photo") { performColorAdjustedSave(asset, replaceOriginal: false) }
-            Button("Replace Original", role: .destructive) { performColorAdjustedSave(asset, replaceOriginal: true) }
+            Button("Save Edit (Keep Original)") { performColorAdjustedSave(asset, replaceOriginal: false) }
+            if editRecipe == nil {
+                Button("Replace Original", role: .destructive) { performColorAdjustedSave(asset, replaceOriginal: true) }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Immich can't store brightness, contrast, or saturation on the original file. Replacing moves the original to Immich's trash, where it can still be recovered.")
+            Text("Save Edit keeps your original and shows the edited copy on top of it, stacked together; you can reopen the edit later. Replace Original moves the original to Immich's trash, where it can still be recovered.")
         }
         .alert("New Album", isPresented: $showNewAlbumPrompt) {
             TextField("Album name", text: $newAlbumName)
@@ -723,7 +730,7 @@ struct PhotoViewerView: View {
     /// start from this — never from `displayImage`, which may already have the
     /// current adjustments baked in and would apply them twice.
     private func baseImage(for asset: AssetSummary) -> NSImage? {
-        pendingCroppedImage ?? straightenedImage ?? imageCache[asset.id]
+        pendingCroppedImage ?? straightenedImage ?? editBaseImage ?? imageCache[asset.id]
     }
 
     @ViewBuilder
@@ -1023,6 +1030,15 @@ struct PhotoViewerView: View {
             Text("Immich can't store looks or colour changes on the original file, so saving asks whether to make a new photo or replace the original.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if let recipe = editRecipe {
+                Text("This is an edited copy. Changes start again from your original, and saving replaces this copy.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Remove Edit…") { showRemoveEditConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(isApplyingEdit)
+                    .help("Go back to the original photo (edit from \(recipe.sourceId.prefix(8)))")
+            }
             if isServerEdited {
                 Button("Revert to Original…") { showRevertConfirmation = true }
                     .buttonStyle(.bordered)
@@ -1049,6 +1065,12 @@ struct PhotoViewerView: View {
         .padding()
         .task(id: asset.id) {
             isServerEdited = (try? await service.fetchAssetInfo(assetId: asset.id))?.isEdited == true
+            await loadRecipe(for: asset)
+        }
+        .confirmationDialog("Remove this edit?", isPresented: $showRemoveEditConfirmation) {
+            Button("Remove Edit", role: .destructive) { removeEditedCopy(asset) }
+        } message: {
+            Text("The edited copy goes to Immich's trash, and your original is shown again. The original is untouched.")
         }
         .confirmationDialog("Revert to the original?", isPresented: $showRevertConfirmation) {
             Button("Revert to Original", role: .destructive) { revertToOriginal(asset) }
@@ -1131,6 +1153,9 @@ struct PhotoViewerView: View {
         pendingAdjustments = .identity
         straightenTask?.cancel()
         straightenedImage = nil
+        editBaseImage = nil
+        editRecipe = nil
+        recipeLoadedFor = nil
         adjustedPreviewImage = nil
         previewNeedsRerender = false
         hasUnsavedChanges = false
@@ -1260,6 +1285,50 @@ struct PhotoViewerView: View {
         if let ratio = lockedCropRatio { cropRect = CropGeometry.fit(fractionalRatio: ratio) }
     }
 
+    /// If this photo is an edited copy, loads the recipe it was made from and the original's picture, so
+    /// the sliders open where they were left and every change starts again from the original.
+    private func loadRecipe(for asset: AssetSummary) async {
+        guard asset.isImage, service.isMine(asset), recipeLoadedFor != asset.id else { return }
+        recipeLoadedFor = asset.id
+        guard !hasUnsavedChanges,
+              let recipe = try? await service.assetMetadata(EditRecipe.self, key: EditRecipe.key, assetId: asset.id) else { return }
+        guard let source = await ThumbnailLoader.shared.image(for: "preview-\(recipe.sourceId)", request: service.previewRequest(assetId: recipe.sourceId)) else { return }
+        // Never overwrite work in progress, or a different photo's state.
+        guard !hasUnsavedChanges, assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id else { return }
+
+        editRecipe = recipe
+        editBaseImage = source
+        pendingRotation = recipe.rotation
+        pendingMirror = recipe.mirror
+        pendingAdjustments = recipe.adjustments
+        makeStraightenedBase(for: asset)
+        if let crop = recipe.crop {
+            cropRect = crop.rect
+            confirmCrop(asset)
+        }
+        hasUnsavedChanges = false
+        refreshAdjustedPreview(for: asset)
+    }
+
+    /// Puts the original back in place of an edited copy.
+    private func removeEditedCopy(_ asset: AssetSummary) {
+        guard let recipe = editRecipe else { return }
+        isApplyingEdit = true
+        Task {
+            defer { isApplyingEdit = false }
+            do {
+                try await service.discardEditedCopy(copyId: asset.id)
+                await ThumbnailLoader.shared.invalidate(assetId: asset.id)
+                resetPendingEditState()
+                NotificationCenter.default.post(name: .gridNeedsReload, object: nil)
+                replaceAssetLocally(oldId: asset.id, newId: recipe.sourceId, seedImage: nil)
+                selection.showToast("Edit removed. Your original is back.")
+            } catch {
+                editErrorMessage = "Couldn't remove the edit: \(error.localizedDescription)"
+            }
+        }
+    }
+
     /// The Straighten slider. Crops are drawn over the straightened picture, so changing the angle
     /// starts any crop over; the straightened picture becomes the base everything else renders from.
     private func straightenChanged(_ asset: AssetSummary, _ degrees: Double) {
@@ -1290,7 +1359,7 @@ struct PhotoViewerView: View {
     private func makeStraightenedBase(for asset: AssetSummary) {
         let angle = pendingAdjustments.straighten
         guard angle != 0, pendingCroppedImage == nil, straightenedImage == nil, assets.indices.contains(currentIndex),
-              assets[currentIndex].id == asset.id, let source = imageCache[asset.id] else { return }
+              assets[currentIndex].id == asset.id, let source = editBaseImage ?? imageCache[asset.id] else { return }
         straightenedImage = ImageAdjustments.renderStraightened(of: source, degrees: angle, maxDimension: 1600)
     }
 
@@ -1375,6 +1444,9 @@ struct PhotoViewerView: View {
             pendingAdjustments = .identity
             straightenTask?.cancel()
             straightenedImage = nil
+            editBaseImage = nil
+            editRecipe = nil
+            recipeLoadedFor = nil
             adjustedPreviewImage = nil
             previewNeedsRerender = false
             hasUnsavedChanges = false
@@ -1386,7 +1458,8 @@ struct PhotoViewerView: View {
     /// bake-and-choose flow when a color adjustment (which Immich can't store at all)
     /// is also pending.
     private func saveEdits(_ asset: AssetSummary) {
-        guard pendingAdjustments.isIdentity else {
+        // An edited copy is always re-made from its original, never edited in place on the server.
+        guard pendingAdjustments.isIdentity, editRecipe == nil else {
             showSaveChoiceDialog = true
             return
         }
@@ -1491,12 +1564,15 @@ struct PhotoViewerView: View {
                 .flatMap { $0.cgImage(forProposedRect: nil, context: nil, hints: nil) }
                 .flatMap { ImageRenderer.meanRGB(CIImage(cgImage: $0)) }
         )
+        // Editing an edited copy starts over from its original, and replaces the copy.
+        let sourceId = editRecipe?.sourceId ?? asset.id
+        let previousCopyId = editRecipe == nil ? nil : asset.id
         isApplyingEdit = true
         Task {
             defer { isApplyingEdit = false }
             do {
                 let (data, _) = try await URLSession.shared.data(
-                    for: service.originalFileRequest(assetId: asset.id, edited: false)
+                    for: service.originalFileRequest(assetId: sourceId, edited: false)
                 )
                 let jpegData = await Task.detached(priority: .userInitiated) {
                     recipe.render(originalData: data)
@@ -1506,7 +1582,7 @@ struct PhotoViewerView: View {
                     return
                 }
 
-                let info = try await service.fetchAssetInfo(assetId: asset.id)
+                let info = try await service.fetchAssetInfo(assetId: sourceId)
                 let baseName = (info.originalFileName as NSString).deletingPathExtension
                 let checksum = Insecure.SHA1.hash(data: jpegData).map { String(format: "%02x", $0) }.joined()
                 let result = try await service.uploadAsset(
@@ -1534,8 +1610,19 @@ struct PhotoViewerView: View {
                     discardPendingEdits()
                     replaceAssetLocally(oldId: asset.id, newId: newAssetId, seedImage: bakedImage)
                 } else {
+                    try await service.publishEditedCopy(
+                        newCopyId: newAssetId, originalId: sourceId, replacing: previousCopyId,
+                        recipe: EditRecipe(recipe, sourceId: sourceId)
+                    )
+                    await ThumbnailLoader.shared.invalidate(assetId: newAssetId)
+                    NotificationCenter.default.post(name: .gridNeedsReload, object: nil)
                     discardPendingEdits()
-                    insertAndShowNewAsset(newAssetId, near: asset, seedImage: bakedImage)
+                    if previousCopyId != nil {
+                        replaceAssetLocally(oldId: asset.id, newId: newAssetId, seedImage: bakedImage)
+                    } else {
+                        insertAndShowNewAsset(newAssetId, near: asset, seedImage: bakedImage)
+                    }
+                    selection.showToast("Saved. Your original is kept underneath.")
                 }
             } catch {
                 editErrorMessage = "Couldn't save your edits: \(error)"
