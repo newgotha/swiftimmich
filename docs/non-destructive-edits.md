@@ -1,6 +1,6 @@
 # Non-destructive edits beyond crop and rotate
 
-Status: **built (option B + C), on branch `v2.6-non-destructive-edits`, not yet released** (idea written 2026-09-21, after 2.4.0).
+Status: **built (option B + C) and released in 2.6.0** (idea written 2026-09-21, after 2.4.0).
 
 ## The problem
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.6.0
+
+- **Non-destructive edits.** Looks, tone and colour sliders, sharpen, vignette, warmth, straighten and crop are now saved with **Save Edit (Keep Original)**: your original is never touched, and the edited copy sits on top of it in a stack, so the Immich web and phone apps show the edited version too.
+- **Re-edit anytime.** Open the Edit panel on an edited copy and the sliders come back where you left them, working from the original again. Saving replaces the old copy.
+- **Remove Edit.** One button in the Edit panel puts your original back and moves the edited copy to the trash.
+- **Clearer stack message.** Trying to take a stack's cover photo out of its stack now explains that Immich doesn't allow it and suggests "Unstack All".
+
 ## 2.5.0
 
 - **Video tools.** Open one of your videos and use the new bar at the top right of the player:
