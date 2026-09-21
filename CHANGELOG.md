@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0
+
+- **Album tools.** Download a whole album as a zip file (large albums are split into several), drag albums into your own order in the sidebar, and give an album a description.
+- **Locations.** "Show on Map" from a photo's right-click menu or its info panel, and a map in the details editor where you click or drag a pin to correct where a photo was taken.
+- **Notifications.** When an import from Photos finishes, stops or has problems, and when someone comments in one of your shared albums — shown only while SwiftImmich isn't the app you're using, and switched off in Settings if you like.
+- **Homebrew.** `brew install --cask newgotha/swiftimmich/swiftimmich`.
+
 ## 2.2.0
 
 - **Freeze protection.** If the window ever stops responding, the app now saves a technical snapshot and offers to attach a summary to **Help > Report a Problem…**, so a freeze can be diagnosed instead of guessed at.
