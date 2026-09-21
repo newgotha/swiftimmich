@@ -316,3 +316,57 @@ final class EditPanelSettlesTests: XCTestCase {
         XCTAssertEqual(changes, 0, "drawing the panel changes nothing by itself")
     }
 }
+
+/// How long one slider tick costs, printed so changes can be compared.
+final class EditingSpeedTests: XCTestCase {
+    private func bigPhoto() -> NSImage {
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        let context = CGContext(data: nil, width: 3200, height: 2400, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(red: 0.3, green: 0.6, blue: 0.8, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 3200, height: 2400))
+        context.setFillColor(CGColor(red: 0.9, green: 0.7, blue: 0.2, alpha: 1)); context.fill(CGRect(x: 800, y: 600, width: 1600, height: 1200))
+        return NSImage(cgImage: context.makeImage()!, size: NSSize(width: 3200, height: 2400))
+    }
+
+    private func milliseconds(_ body: () -> Void) -> Double {
+        let elapsed = ContinuousClock().measure(body)
+        return Double(elapsed.components.seconds) * 1000 + Double(elapsed.components.attoseconds) / 1e15
+    }
+
+    /// A noisy JPEG-backed photo, like the ones the viewer keeps in memory.
+    private func jpegPhoto(width: Int = 2000, height: Int = 1500) -> NSImage {
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        var generator = SystemRandomNumberGenerator()
+        for _ in 0..<4000 {
+            context.setFillColor(CGColor(red: .random(in: 0...1, using: &generator), green: .random(in: 0...1, using: &generator), blue: .random(in: 0...1, using: &generator), alpha: 1))
+            context.fill(CGRect(x: .random(in: 0..<CGFloat(width), using: &generator), y: .random(in: 0..<CGFloat(height), using: &generator), width: 120, height: 90))
+        }
+        let data = NSBitmapImageRep(cgImage: context.makeImage()!).representation(using: .jpeg, properties: [.compressionFactor: 0.85])!
+        return NSImage(data: data)!
+    }
+
+    func testTicksOnAJPEGBackedPhoto() {
+        let photo = jpegPhoto()
+        var adjustments = ImageAdjustments(); adjustments.straighten = 4
+        _ = ImageAdjustments.renderStraightened(of: photo, degrees: 4)
+        let straight = milliseconds { for _ in 0..<5 { _ = ImageAdjustments.renderStraightened(of: photo, degrees: 4) } } / 5
+        let combined = milliseconds { for _ in 0..<5 { _ = ImageAdjustments.renderPreview(of: photo, adjustments: adjustments, includeStraighten: true) } } / 5
+        let thumbs = milliseconds {
+            var small = CIImage(cgImage: photo.cgImage(forProposedRect: nil, context: nil, hints: nil)!)
+            let scale = 160 / max(small.extent.width, small.extent.height)
+            small = small.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            for look in Look.allCases { var a = ImageAdjustments(); a.look = look; _ = ImageRenderer.nsImage(from: a.apply(to: small)) }
+        }
+        print("BENCH jpeg-backed 2000px: straighten base \(String(format: "%.1f", straight)) ms; combined preview \(String(format: "%.1f", combined)) ms; all 11 look thumbnails \(String(format: "%.1f", thumbs)) ms")
+    }
+
+    func testOneStraightenTickIsCheap() {
+        let photo = bigPhoto()
+        var adjustments = ImageAdjustments(); adjustments.straighten = 4; adjustments.look = .vivid; adjustments.vignette = 0.3
+        _ = ImageAdjustments.renderPreview(of: photo, adjustments: adjustments, includeStraighten: true)   // warm up
+        let tick = milliseconds { for _ in 0..<5 { _ = ImageAdjustments.renderPreview(of: photo, adjustments: adjustments, includeStraighten: true) } } / 5
+        let base = milliseconds { for _ in 0..<5 { _ = ImageAdjustments.renderStraightened(of: photo, degrees: 4) } } / 5
+        print("BENCH straighten tick (combined preview): \(String(format: "%.1f", tick)) ms; straightened base at full size: \(String(format: "%.1f", base)) ms")
+        XCTAssertLessThan(tick, 120, "a slider tick should stay well inside a few frames")
+    }
+}

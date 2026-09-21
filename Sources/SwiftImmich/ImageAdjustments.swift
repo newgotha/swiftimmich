@@ -204,7 +204,7 @@ struct ImageAdjustments: Equatable {
     }
 
     /// The picture straightened by `degrees`, for the viewer to use as its base (capped in size, like the preview).
-    static func renderStraightened(of base: NSImage, degrees: Double, maxDimension: CGFloat = 2400) -> NSImage? {
+    static func renderStraightened(of base: NSImage, degrees: Double, maxDimension: CGFloat = 1600) -> NSImage? {
         guard let cgImage = base.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         var ciImage = CIImage(cgImage: cgImage)
         let longest = max(ciImage.extent.width, ciImage.extent.height)

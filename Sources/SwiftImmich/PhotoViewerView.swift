@@ -889,7 +889,7 @@ struct PhotoViewerView: View {
             ScrollView {
                 EditControls(
                     adjustments: pendingAdjustments,
-                    baseImage: baseImage(for: asset),
+                    baseImage: pendingCroppedImage ?? imageCache[asset.id],
                     cropIsPending: pendingCroppedImage != nil,
                     change: { mutate in adjustmentChanged(asset, mutate) },
                     changeStraighten: { straightenChanged(asset, $0) }
@@ -1058,6 +1058,8 @@ struct PhotoViewerView: View {
     /// dimensions needs no on-screen size at all — sidestepping any dependency on
     /// `renderedImageSize` having already settled to its current value.
     private func confirmCrop(_ asset: AssetSummary) {
+        // The crop was drawn over the straightened picture, so make sure that's what it's cut from.
+        makeStraightenedBase(for: asset)
         guard let source = baseImage(for: asset) else {
             isCropping = false
             return
@@ -1146,19 +1148,27 @@ struct PhotoViewerView: View {
         let angle = abs(degrees) < 0.05 ? 0 : degrees
         pendingAdjustments.straighten = angle
         hasUnsavedChanges = true
+
+        // While dragging, each tick is one small render straight from the original (straighten and
+        // any colour changes together), coalesced like every other slider. The full straightened
+        // picture that crops are drawn over is only made once the slider has paused.
         straightenTask?.cancel()
-        let source = imageCache[asset.id]
+        straightenedImage = nil
+        refreshAdjustedPreview(for: asset)
+        guard angle != 0 else { return }
         straightenTask = Task {
-            try? await Task.sleep(for: .milliseconds(30))
+            try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
-            let rendered: NSImage? = angle == 0 ? nil : await Task.detached(priority: .userInitiated) {
-                source.flatMap { ImageAdjustments.renderStraightened(of: $0, degrees: angle) }
-            }.value
-            guard !Task.isCancelled, assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id else { return }
-            straightenedImage = rendered
-            adjustedPreviewImage = nil
-            refreshAdjustedPreview(for: asset)
+            makeStraightenedBase(for: asset)
         }
+    }
+
+    /// The straightened picture that a crop is drawn over and that later adjustments start from.
+    private func makeStraightenedBase(for asset: AssetSummary) {
+        let angle = pendingAdjustments.straighten
+        guard angle != 0, pendingCroppedImage == nil, straightenedImage == nil, assets.indices.contains(currentIndex),
+              assets[currentIndex].id == asset.id, let source = imageCache[asset.id] else { return }
+        straightenedImage = ImageAdjustments.renderStraightened(of: source, degrees: angle, maxDimension: 1600)
     }
 
     /// Removes the crop / rotate / mirror edits the server holds for this photo.
@@ -1201,7 +1211,7 @@ struct PhotoViewerView: View {
     /// thread for every drag tick (the first version) made the sliders visibly laggy.
     /// The short sleep caps how often the whole viewer is asked to redraw.
     private func refreshAdjustedPreview(for asset: AssetSummary) {
-        guard !pendingAdjustments.isTonalIdentity else {
+        guard !pendingAdjustments.isIdentity else {
             adjustedPreviewImage = nil
             previewNeedsRerender = false
             return
@@ -1214,13 +1224,15 @@ struct PhotoViewerView: View {
                 previewNeedsRerender = false
                 guard let base = baseImage(for: asset) else { break }
                 let adjustments = pendingAdjustments
+                // Straighten here unless the base picture has already been straightened (or cropped from a straightened one).
+                let needsStraighten = pendingCroppedImage == nil && straightenedImage == nil
                 let rendered = await Task.detached(priority: .userInitiated) {
-                    ImageAdjustments.renderPreview(of: base, adjustments: adjustments)
+                    ImageAdjustments.renderPreview(of: base, adjustments: adjustments, includeStraighten: needsStraighten)
                 }.value
                 // Only publish if the user is still looking at this photo with
                 // adjustments still pending — they may have swiped away or discarded
                 // while this render was running.
-                if assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id, !pendingAdjustments.isTonalIdentity {
+                if assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id, !pendingAdjustments.isIdentity {
                     adjustedPreviewImage = rendered
                 }
                 try? await Task.sleep(for: .milliseconds(33))
