@@ -126,7 +126,7 @@ struct StorageView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var finder: some View {

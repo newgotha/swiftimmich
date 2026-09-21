@@ -7,9 +7,7 @@ struct SwiftImmichApp: App {
 
     init() {
         AppLog.installExceptionHook()
-        // The interface is designed on light backgrounds (white toolbar, page-coloured grids,
-        // white cards), so it always uses the light appearance rather than being half-dark.
-        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        AppearanceMode.saved.apply()
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
             await UpdateChecker.shared.checkAtLaunchIfDue()

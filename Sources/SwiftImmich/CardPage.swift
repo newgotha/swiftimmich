@@ -15,10 +15,10 @@ struct CardPage<Content: View>: View {
                 }
                 .padding(32)
                 .frame(maxWidth: maxWidth, alignment: .leading)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(Palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(Color(white: 0.82), lineWidth: 1)
+                        .strokeBorder(Palette.cardBorder, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.05), radius: 10, y: 3)
                 .padding(28)

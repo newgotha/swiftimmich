@@ -9,11 +9,11 @@ import SwiftUI
 /// darker text make them read clearly, and using the same values everywhere is what
 /// keeps them looking like one family.
 enum ToolbarPill {
-    static let fill = Color(white: 0.925)
-    static let pressedFill = Color(white: 0.85)
-    static let selectedFill = Color(white: 0.79)
-    static let border = Color(white: 0.74)
-    static let text = Color(white: 0.2)
+    static let fill = Color(nsColor: Palette.pillFillNS)
+    static let pressedFill = Color(nsColor: Palette.pillPressedNS)
+    static let selectedFill = Color(nsColor: Palette.pillSelectedNS)
+    static let border = Color(nsColor: Palette.pillBorderNS)
+    static let text = Color(nsColor: Palette.pillTextNS)
     static let height: CGFloat = 31
     static let cornerRadius: CGFloat = 7
 }
@@ -153,21 +153,24 @@ struct SearchFieldStyler: NSViewRepresentable {
             if let cell = field.cell, !(cell is CenteredSearchFieldCell) {
                 object_setClass(cell, CenteredSearchFieldCell.self)
             }
-            guard field.layer?.borderWidth != pillBorderWidth else { return }
+            // Layer colours are fixed values, so they're redone when light/dark changes.
+            let appearanceName = field.effectiveAppearance.name.rawValue
+            guard field.layer?.borderWidth != pillBorderWidth || field.layer?.name != appearanceName else { return }
+            field.layer?.name = appearanceName
 
             field.isBezeled = false
             field.drawsBackground = false
             field.focusRingType = .none
-            field.textColor = NSColor(white: 0.2, alpha: 1)
+            field.textColor = Palette.pillTextNS
             field.placeholderAttributedString = NSAttributedString(
                 string: "Search your photos",
                 attributes: [
-                    .foregroundColor: NSColor(white: 0.42, alpha: 1),
+                    .foregroundColor: Palette.pillPlaceholderNS,
                     .font: field.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
                 ]
             )
-            field.layer?.backgroundColor = NSColor(white: 0.925, alpha: 1).cgColor
-            field.layer?.borderColor = NSColor(white: 0.74, alpha: 1).cgColor
+            field.layer?.backgroundColor = Palette.resolved(Palette.pillFillNS, for: field.effectiveAppearance)
+            field.layer?.borderColor = Palette.resolved(Palette.pillBorderNS, for: field.effectiveAppearance)
             field.layer?.borderWidth = pillBorderWidth
             field.layer?.cornerRadius = 7
         }

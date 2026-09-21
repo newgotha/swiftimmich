@@ -319,7 +319,7 @@ struct ContentView: View {
             Button("OK") {}
         }
         .overlay { ViewerGhostOverlay(transition: viewerTransition) }
-        .toolbarBackground(Color.white, for: .windowToolbar)
+        .toolbarBackground(Palette.toolbar, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .task { await loadCredentialsAndConnect() }
     }

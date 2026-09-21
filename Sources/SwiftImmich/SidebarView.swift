@@ -102,7 +102,7 @@ struct SidebarView: View {
         // (list style, column width, a from-scratch AppKit split view) couldn't move.
         .background(alignment: .top) {
             Rectangle()
-                .fill(Color.white)
+                .fill(Palette.toolbar)
                 .frame(height: 48)
                 .ignoresSafeArea(edges: .top)
         }

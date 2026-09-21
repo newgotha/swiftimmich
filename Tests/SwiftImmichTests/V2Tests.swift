@@ -291,3 +291,33 @@ final class AccessibilityDescriptionTests: XCTestCase {
         XCTAssertEqual(JustifiedAssetGridView.description(of: video), "Video, stack of 3")
     }
 }
+
+final class AppearanceTests: XCTestCase {
+    func testTheDefaultFollowsTheSystemAndSavedChoicesAreRead() {
+        let defaults = UserDefaults.standard
+        let original = defaults.string(forKey: AppearanceMode.key)
+        defer { if let original { defaults.set(original, forKey: AppearanceMode.key) } else { defaults.removeObject(forKey: AppearanceMode.key) } }
+
+        defaults.removeObject(forKey: AppearanceMode.key)
+        XCTAssertEqual(AppearanceMode.saved, .system)
+        defaults.set("dark", forKey: AppearanceMode.key)
+        XCTAssertEqual(AppearanceMode.saved, .dark)
+        defaults.set("nonsense", forKey: AppearanceMode.key)
+        XCTAssertEqual(AppearanceMode.saved, .system)
+    }
+
+    func testThePaletteChangesWithTheAppearance() throws {
+        func rgb(_ color: NSColor, _ name: NSAppearance.Name) throws -> Double {
+            var value = 0.0
+            try XCTUnwrap(NSAppearance(named: name)).performAsCurrentDrawingAppearance {
+                value = Double(color.usingColorSpace(.sRGB)?.brightnessComponent ?? -1)
+            }
+            return value
+        }
+        for color in [Palette.cardNS, Palette.toolbarNS, Palette.panelNS, Palette.pillFillNS, Palette.pillTextNS] {
+            XCTAssertNotEqual(try rgb(color, .aqua), try rgb(color, .darkAqua))
+        }
+        XCTAssertGreaterThan(try rgb(Palette.cardNS, .aqua), try rgb(Palette.cardNS, .darkAqua), "cards are light in light mode and dark in dark mode")
+        XCTAssertGreaterThan(try rgb(Palette.pillTextNS, .darkAqua), try rgb(Palette.pillTextNS, .aqua), "text is light on dark")
+    }
+}

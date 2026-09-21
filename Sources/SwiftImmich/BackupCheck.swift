@@ -167,7 +167,7 @@ struct BackupCheckView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(Palette.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
         if model.missing.isEmpty {
             Label("Everything in Photos is on your server.", systemImage: "checkmark.circle.fill")

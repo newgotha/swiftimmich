@@ -5,12 +5,23 @@ struct SettingsView: View {
     @AppStorage(DiskImageCache.limitKey) private var cacheLimitMB = 1024
     @AppStorage(AutoImport.enabledKey) private var autoImport = false
     @AppStorage("showMenuBarItem") private var showMenuBarItem = true
+    @AppStorage(AppearanceMode.key) private var appearance = AppearanceMode.system.rawValue
     @AppStorage(UpdateChecker.autoCheckKey) private var autoCheckUpdates = true
     @State private var usedBytes = 0
     @State private var isClearing = false
 
     var body: some View {
         Form {
+            Section("Appearance") {
+                Picker("Look", selection: $appearance) {
+                    ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: appearance) { _, value in
+                    (AppearanceMode(rawValue: value) ?? .system).apply()
+                }
+            }
+
             Section("Saved photos") {
                 Text("Thumbnails and previews you've viewed are kept on this Mac so browsing is quick and still works without a connection. Full-size originals aren't saved.")
                     .font(.callout)

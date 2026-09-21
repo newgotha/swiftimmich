@@ -7,7 +7,7 @@ struct SectionHeader: View {
     let title: String
 
     /// The page colour behind the photo grids.
-    static let pageColor = Color(red: 244 / 255, green: 243 / 255, blue: 245 / 255)
+    static let pageColor = Palette.page
 
     /// How far below the header the fade reaches. Long and eased so it dissolves gradually,
     /// with a little extra space under the label so most of it lies in the gap above the
