@@ -13,6 +13,8 @@ import SwiftUI
 /// the app that could reach a view containing it, not just while actually playing.
 struct VideoPlayerView: NSViewRepresentable {
     let request: URLRequest
+    /// Lets the viewer's own controls (speed, saving a frame) reach the player.
+    var controller: VideoPlaybackController?
 
     final class Coordinator {
         var loadedURL: URL?
@@ -36,6 +38,7 @@ struct VideoPlayerView: NSViewRepresentable {
         let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
         nsView.player = player
+        controller?.attach(player)
         player.play()
     }
 

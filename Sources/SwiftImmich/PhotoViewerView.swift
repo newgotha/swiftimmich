@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import ImmichAPI
 import CoreImage
@@ -59,6 +60,11 @@ struct PhotoViewerView: View {
     /// Whether the server holds crop / rotate / mirror edits for this photo.
     @State private var isServerEdited = false
     @State private var showRevertConfirmation = false
+    // Video tools
+    @State private var videoController = VideoPlaybackController()
+    @State private var videoSpeed: VideoSpeed = .normal
+    @State private var trimSession: TrimSession?
+    @State private var videoBusy: String?
     @State private var renderedImageSize: CGSize = .zero
     @State private var showEditOverlay = false
     @State private var showInfoPanel = false
@@ -256,24 +262,7 @@ struct PhotoViewerView: View {
                 .disabled(newAlbumName.trimmingCharacters(in: .whitespaces).isEmpty)
             Button("Cancel", role: .cancel) {}
         }
-        .alert(
-            albumActionMessage ?? "",
-            isPresented: Binding(
-                get: { albumActionMessage != nil },
-                set: { if !$0 { albumActionMessage = nil } }
-            )
-        ) {
-            Button("OK") {}
-        }
-        .alert(
-            editErrorMessage ?? "",
-            isPresented: Binding(
-                get: { editErrorMessage != nil },
-                set: { if !$0 { editErrorMessage = nil } }
-            )
-        ) {
-            Button("OK") {}
-        }
+        .modifier(ViewerAlerts(albumActionMessage: $albumActionMessage, editErrorMessage: $editErrorMessage))
         .task {
             await preload(asset)
         }
@@ -781,7 +770,133 @@ struct PhotoViewerView: View {
                 ProgressView()
             }
         } else {
-            VideoPlayerView(request: service.videoPlaybackRequest(assetId: asset.id))
+            VideoPlayerView(request: service.videoPlaybackRequest(assetId: asset.id), controller: videoController)
+                .overlay(alignment: .topTrailing) { videoTools(for: asset) }
+        }
+    }
+
+    // MARK: - Video tools
+
+    private func videoTools(for asset: AssetSummary) -> some View {
+        HStack(spacing: 10) {
+            if let videoBusy {
+                ProgressView().controlSize(.small)
+                Text(videoBusy).font(.caption).foregroundStyle(.secondary)
+            }
+            Menu {
+                ForEach(VideoSpeed.allCases) { speed in
+                    Button {
+                        videoSpeed = speed
+                        videoController.speed = speed
+                    } label: {
+                        if videoSpeed == speed { Label(speed.title, systemImage: "checkmark") } else { Text(speed.title) }
+                    }
+                }
+            } label: {
+                Label(videoSpeed == .normal ? "Speed" : videoSpeed.title, systemImage: "speedometer")
+            }
+            .fixedSize()
+            .help("Playback speed")
+            if service.isMine(asset), !filter.isTrashed {
+                Button {
+                    saveFrame(of: asset)
+                } label: {
+                    Label("Save Frame", systemImage: "camera.viewfinder")
+                }
+                .help("Save the picture on screen as a new photo")
+                .disabled(videoBusy != nil)
+                Button {
+                    prepareTrim(asset)
+                } label: {
+                    Label("Trim…", systemImage: "scissors")
+                }
+                .help("Cut the start and end off this video")
+                .disabled(videoBusy != nil)
+            }
+        }
+        .buttonStyle(ToolbarPillStyle())
+        .font(.callout)
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(12)
+        .sheet(item: $trimSession) { session in
+            VideoTrimView(
+                session: session,
+                save: { range, mode, stage in try await saveTrimmed(asset, session: session, range: range, mode: mode, stage: stage) },
+                close: { trimSession = nil }
+            )
+        }
+    }
+
+    /// Downloads the original so it can be cut and previewed exactly.
+    private func prepareTrim(_ asset: AssetSummary) {
+        videoController.player?.pause()
+        videoBusy = "Getting the video…"
+        Task {
+            defer { videoBusy = nil }
+            do {
+                let info = try await service.fetchAssetInfo(assetId: asset.id)
+                let file = try await service.downloadForSharing(assetId: asset.id, isImage: false)
+                let duration = try await AVURLAsset(url: file).load(.duration).seconds
+                guard duration.isFinite, duration > TrimRange.minimumLength else {
+                    editErrorMessage = "This video is too short to trim."
+                    return
+                }
+                trimSession = TrimSession(fileURL: file, duration: duration, title: info.originalFileName)
+            } catch {
+                editErrorMessage = "Couldn't get the video to trim: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func saveTrimmed(_ asset: AssetSummary, session: TrimSession, range: TrimRange, mode: VideoExporter.Mode, stage: @escaping @Sendable (TrimStage) -> Void) async throws {
+        let cut = try await VideoExporter.export(source: session.fileURL, range: range, mode: mode) { stage(.cutting($0)) }
+        defer { try? FileManager.default.removeItem(at: cut.deletingLastPathComponent()) }
+        stage(.uploading)
+        let info = try await service.fetchAssetInfo(assetId: asset.id)
+        let checksum = try TransferCenter.sha1(of: cut)
+        let baseName = (info.originalFileName as NSString).deletingPathExtension
+        let result = try await service.uploadAsset(
+            fileURL: cut, filename: "\(baseName)-trimmed.\(cut.pathExtension)",
+            createdAt: info.fileCreatedAt, modifiedAt: Date(), checksum: checksum
+        )
+        let newId: String
+        switch result {
+        case .created(let id), .duplicate(let id): newId = id
+        }
+        NotificationCenter.default.post(name: .gridNeedsReload, object: nil)
+        insertAndShowNewAsset(newId, near: asset, seedImage: nil, isImage: false)
+        selection.showToast("Saved the trimmed video. The original is untouched.")
+    }
+
+    /// Saves the frame on screen as a new photo.
+    private func saveFrame(of asset: AssetSummary) {
+        guard let videoAsset = videoController.currentAsset else { return }
+        let seconds = videoController.currentSeconds
+        videoBusy = "Saving frame…"
+        Task {
+            defer { videoBusy = nil }
+            do {
+                let picture = try await VideoFrames.frame(of: videoAsset, at: seconds)
+                guard let jpeg = VideoFrames.jpegData(from: picture) else {
+                    editErrorMessage = "Couldn't turn that frame into a photo."
+                    return
+                }
+                let info = try await service.fetchAssetInfo(assetId: asset.id)
+                let baseName = (info.originalFileName as NSString).deletingPathExtension
+                let checksum = Insecure.SHA1.hash(data: jpeg).map { String(format: "%02x", $0) }.joined()
+                _ = try await service.uploadAsset(
+                    data: jpeg,
+                    filename: "\(baseName)-frame-\(VideoClock.text(seconds).replacingOccurrences(of: ":", with: "m").replacingOccurrences(of: ".", with: "s")).jpg",
+                    createdAt: info.fileCreatedAt.addingTimeInterval(seconds),
+                    modifiedAt: Date(),
+                    checksum: checksum
+                )
+                NotificationCenter.default.post(name: .gridNeedsReload, object: nil)
+                selection.showToast("Saved this frame as a new photo.")
+            } catch {
+                editErrorMessage = "Couldn't save that frame: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -1452,10 +1567,10 @@ struct PhotoViewerView: View {
     /// Inserts the newly uploaded "Save as New Photo" asset right after the original
     /// in the viewer's local list and navigates to it — staying on the original after
     /// a save left no way to actually see what was just saved.
-    private func insertAndShowNewAsset(_ newId: String, near asset: AssetSummary, seedImage: NSImage?) {
+    private func insertAndShowNewAsset(_ newId: String, near asset: AssetSummary, seedImage: NSImage?, isImage: Bool = true) {
         guard let index = assets.firstIndex(where: { $0.id == asset.id }) else { return }
         let insertIndex = index + 1
-        let newAsset = AssetSummary(id: newId, isFavorite: false, isImage: true, ratio: asset.ratio)
+        let newAsset = AssetSummary(id: newId, isFavorite: false, isImage: isImage, ratio: asset.ratio)
         assets.insert(newAsset, at: insertIndex)
         if let seedImage {
             imageCache[newId] = seedImage
@@ -1644,5 +1759,28 @@ struct PhotoViewerView: View {
                 // Leave the asset in place; the user can retry.
             }
         }
+    }
+}
+
+
+/// The viewer's message alerts, kept out of its body so the compiler can type-check it.
+private struct ViewerAlerts: ViewModifier {
+    @Binding var albumActionMessage: String?
+    @Binding var editErrorMessage: String?
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                albumActionMessage ?? "",
+                isPresented: Binding(get: { albumActionMessage != nil }, set: { if !$0 { albumActionMessage = nil } })
+            ) {
+                Button("OK") {}
+            }
+            .alert(
+                editErrorMessage ?? "",
+                isPresented: Binding(get: { editErrorMessage != nil }, set: { if !$0 { editErrorMessage = nil } })
+            ) {
+                Button("OK") {}
+            }
     }
 }

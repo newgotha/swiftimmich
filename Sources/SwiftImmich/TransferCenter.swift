@@ -99,7 +99,7 @@ final class TransferCenter: ObservableObject {
         )
     }
 
-    private nonisolated static func sha1(of url: URL) throws -> String {
+    nonisolated static func sha1(of url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         var hasher = Insecure.SHA1()
