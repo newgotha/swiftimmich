@@ -928,7 +928,7 @@ struct PhotoViewerView: View {
     private func cropActionBar(for asset: AssetSummary) -> some View {
         HStack {
             Button("Cancel") { isCropping = false }
-                .buttonStyle(.bordered)
+                .buttonStyle(HoverBorderedStyle())
             Spacer()
             Menu {
                 ForEach(CropAspect.allCases) { aspect in
@@ -948,12 +948,12 @@ struct PhotoViewerView: View {
                 Image(systemName: "rectangle.portrait.rotate")
                     .accessibilityLabel("Switch between portrait and landscape")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(HoverBorderedStyle())
             .disabled(!cropAspect.canFlip)
             .help("Switch between portrait and landscape")
             Spacer()
             Button("Apply Crop") { confirmCrop(asset) }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
         }
         .padding()
         .background(.regularMaterial)
@@ -964,14 +964,14 @@ struct PhotoViewerView: View {
     private func pendingEditsBar(for asset: AssetSummary) -> some View {
         HStack {
             Button("Discard") { discardPendingEdits() }
-                .buttonStyle(.bordered)
+                .buttonStyle(HoverBorderedStyle())
                 .disabled(isApplyingEdit)
             Spacer()
             if isApplyingEdit {
                 ProgressView().controlSize(.small)
             }
             Button("Save Changes") { saveEdits(asset) }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
                 .disabled(isApplyingEdit)
         }
         .padding()
@@ -992,7 +992,7 @@ struct PhotoViewerView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
             }
             HStack {
                 Button {
@@ -1004,7 +1004,7 @@ struct PhotoViewerView: View {
                         Label(pendingAdjustments.autoEnhance == nil ? "Auto Enhance" : "Re-run", systemImage: "wand.and.rays")
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HoverBorderedStyle())
                 .disabled(isAutoEnhancing || isCropping)
                 if pendingAdjustments.autoEnhance != nil {
                     Slider(value: Binding(
@@ -1035,26 +1035,26 @@ struct PhotoViewerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button("Remove Edit…") { showRemoveEditConfirmation = true }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HoverBorderedStyle())
                     .disabled(isApplyingEdit)
                     .help("Go back to the original photo (edit from \(recipe.sourceId.prefix(8)))")
             }
             if isServerEdited {
                 Button("Revert to Original…") { showRevertConfirmation = true }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HoverBorderedStyle())
                     .disabled(isApplyingEdit)
                     .help("Removes the crop, rotation and mirroring saved for this photo")
             }
             HStack {
                 Button("Discard") { discardPendingEdits() }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HoverBorderedStyle())
                     .disabled(isApplyingEdit || !hasUnsavedChanges)
                 Spacer()
                 if isApplyingEdit {
                     ProgressView().controlSize(.small)
                 }
                 Button("Save Changes") { saveEdits(asset) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(isApplyingEdit || !hasUnsavedChanges)
             }
         }
@@ -1101,7 +1101,7 @@ struct PhotoViewerView: View {
                 .padding(10)
                 .background(.ultraThinMaterial, in: Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverPlainStyle())
     }
 
     private func showPrevious() {

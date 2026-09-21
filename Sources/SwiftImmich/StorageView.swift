@@ -152,7 +152,7 @@ struct StorageView: View {
                         selected = []
                         scan.start(kind: kind, service: service)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     if scan.hasScanned && scan.errorMessage == nil {
                         Text("Looked at \(scan.scanned.formatted()) items.").font(.callout).foregroundStyle(.secondary)
                     }
@@ -198,7 +198,7 @@ struct StorageView: View {
                     } label: {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HoverPlainStyle())
                     .accessibilityLabel("Open photo")
                     .help("Open")
                 }
@@ -215,7 +215,7 @@ struct StorageView: View {
             Spacer()
             Button("Clear Selection") { selected = [] }
             Button("Move to Recently Deleted…", role: .destructive) { confirmTrash = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
         }
         .padding(12)
         .background(.regularMaterial)

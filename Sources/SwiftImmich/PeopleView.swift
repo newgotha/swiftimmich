@@ -97,7 +97,7 @@ struct PeopleView: View {
                     .lineLimit(1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverCardStyle())
         .contextMenu {
             Button(person.name.isEmpty ? "Name…" : "Rename…") { editingPersonId = person.id }
             Button(person.isFavorite == true ? "Remove from Favorites" : "Add to Favorites") {
@@ -191,7 +191,7 @@ private struct BirthdayEditor: View {
                 Button("Cancel") { onSaved(person) }
                 Spacer()
                 Button("Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(isWorking)
             }
         }

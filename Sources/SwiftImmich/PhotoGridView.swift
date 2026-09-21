@@ -82,7 +82,7 @@ struct PhotoGridView: View {
                 if let album {
                     if album.description.isEmpty {
                         Button("Add description") { selection.pendingDescribeAlbum = album }
-                            .buttonStyle(.plain)
+                            .buttonStyle(HoverPlainStyle())
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     } else {

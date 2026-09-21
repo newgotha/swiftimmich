@@ -46,7 +46,7 @@ struct PhotosImportView: View {
             Button("Allow Access to Photos") {
                 Task { await importer.requestAccess() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(HoverProminentStyle())
         }
     }
 
@@ -131,7 +131,7 @@ struct PhotosImportView: View {
                 Button(importer.phase == .stopped ? "Resume Import" : "Start Import") {
                     importer.start(service: service, limit: scope == .testRun ? Self.testRunSize : nil)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
                 .disabled(importer.pendingCount == 0)
 
                 if importer.pendingCount == 0 && importer.librarySize > 0 {

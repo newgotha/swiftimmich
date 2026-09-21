@@ -99,7 +99,7 @@ struct VideoTrimView: View {
                     .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("Save as New Video") { perform() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(isBusy || range.isFullClip)
                     .help(range.isFullClip ? "Move a handle to choose what to keep" : "The original video is kept")

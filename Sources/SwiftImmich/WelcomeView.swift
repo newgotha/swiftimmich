@@ -47,7 +47,7 @@ struct WelcomeView: View {
                 if isBusy { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Test and Connect", action: connectIfReady)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canConnect)
             }

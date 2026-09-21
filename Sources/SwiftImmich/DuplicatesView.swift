@@ -218,7 +218,7 @@ struct DuplicatesView: View {
                 } label: {
                     Text(trashCount == 0 ? "Keep All" : "Keep \(group.keep.count), Trash \(trashCount)")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
             }
             .disabled(model.isWorking)
         }
@@ -287,7 +287,7 @@ private struct DuplicateCard: View {
                         .background(Color.black.opacity(0.55), in: Circle())
                         .padding(6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
                 .help("Open")
             }
             .overlay {

@@ -61,7 +61,7 @@ struct AlbumsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverCardStyle())
                         .overlay {
                             if dropTargetId == album.id {
                                 RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor, lineWidth: 3)

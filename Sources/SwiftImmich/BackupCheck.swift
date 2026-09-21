@@ -147,7 +147,7 @@ struct BackupCheckView: View {
                     .foregroundStyle(.secondary)
             } else {
                 Button(model.lastChecked == nil ? "Check Now" : "Check Again") { model.start(service: service) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(importer.isRunning)
                 if let last = model.lastChecked {
                     Text("Last checked \(last.formatted(date: .omitted, time: .shortened))")
@@ -181,7 +181,7 @@ struct BackupCheckView: View {
                     Button("Import \(model.missing.count.formatted()) Missing") {
                         importer.startImport(identifiers: model.missing.map(\.id), service: service)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(importer.isRunning)
                 }
                 if importer.isRunning {

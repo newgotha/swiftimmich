@@ -306,7 +306,7 @@ struct MapPage: View {
                     )
                     .padding(.horizontal, 6)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(HoverProminentStyle())
                 .controlSize(.large)
                 .disabled(visibleCount == 0)
                 .shadow(color: .black.opacity(0.3), radius: 6, y: 2)

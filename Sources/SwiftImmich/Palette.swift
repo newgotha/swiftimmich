@@ -31,6 +31,7 @@ enum Palette {
     // Toolbar controls
     static let pillFillNS = dynamic(light: NSColor(white: 0.925, alpha: 1), dark: NSColor(white: 0.24, alpha: 1))
     static let pillPressedNS = dynamic(light: NSColor(white: 0.85, alpha: 1), dark: NSColor(white: 0.31, alpha: 1))
+    static let pillHoverNS = dynamic(light: NSColor(white: 0.885, alpha: 1), dark: NSColor(white: 0.29, alpha: 1))
     static let pillSelectedNS = dynamic(light: NSColor(white: 0.79, alpha: 1), dark: NSColor(white: 0.38, alpha: 1))
     static let pillBorderNS = dynamic(light: NSColor(white: 0.74, alpha: 1), dark: NSColor(white: 0.4, alpha: 1))
     static let pillTextNS = dynamic(light: NSColor(white: 0.2, alpha: 1), dark: NSColor(white: 0.92, alpha: 1))

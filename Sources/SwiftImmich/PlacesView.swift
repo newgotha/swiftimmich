@@ -37,7 +37,7 @@ struct PlacesView: View {
                                     .lineLimit(1)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverCardStyle())
                     }
                 }
                 .padding(.leading, contentLeadingPadding)

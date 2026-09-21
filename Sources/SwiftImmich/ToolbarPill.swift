@@ -11,6 +11,7 @@ import SwiftUI
 enum ToolbarPill {
     static let fill = Color(nsColor: Palette.pillFillNS)
     static let pressedFill = Color(nsColor: Palette.pillPressedNS)
+    static let hoverFill = Color(nsColor: Palette.pillHoverNS)
     static let selectedFill = Color(nsColor: Palette.pillSelectedNS)
     static let border = Color(nsColor: Palette.pillBorderNS)
     static let text = Color(nsColor: Palette.pillTextNS)
@@ -20,11 +21,26 @@ enum ToolbarPill {
 
 struct ToolbarPillStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(ToolbarPill.text)
-            .padding(.horizontal, 10)
-            .frame(height: ToolbarPill.height)
-            .toolbarPillBackground(fill: configuration.isPressed ? ToolbarPill.pressedFill : ToolbarPill.fill)
+        PillBody(configuration: configuration)
+    }
+
+    private struct PillBody: View {
+        let configuration: ButtonStyleConfiguration
+        @State private var pointerInside = false
+        @Environment(\.forcedHover) private var forced
+        private var hovering: Bool { pointerInside || forced }
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(ToolbarPill.text)
+                .padding(.horizontal, 10)
+                .frame(height: ToolbarPill.height)
+                .toolbarPillBackground(fill: configuration.isPressed ? ToolbarPill.pressedFill : (hovering && isEnabled ? ToolbarPill.hoverFill : ToolbarPill.fill))
+                .opacity(isEnabled ? 1 : 0.5)
+                .onHover { pointerInside = $0 }
+                .animation(HoverLook.animation, value: hovering)
+        }
     }
 }
 
@@ -61,7 +77,7 @@ struct GroupingControl: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle(cornerRadius: ToolbarPill.cornerRadius - 2, inset: 0))
             }
         }
         .padding(3)

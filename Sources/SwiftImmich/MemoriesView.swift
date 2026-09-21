@@ -141,7 +141,7 @@ struct MemoriesView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverCardStyle())
     }
 
     private func loadToday() async {

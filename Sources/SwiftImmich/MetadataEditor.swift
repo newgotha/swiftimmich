@@ -81,7 +81,7 @@ struct MetadataEditor: View {
                 Button("Cancel", action: onClose)
                     .keyboardShortcut(.cancelAction)
                 Button("Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(!hasChanges || isSaving)
             }
@@ -217,7 +217,7 @@ struct MetadataEditor: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .padding(.vertical, 2)
                     }
                 }

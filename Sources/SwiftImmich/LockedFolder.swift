@@ -307,7 +307,7 @@ struct LockedFolderView: View {
                 Text("Your private photos are hidden until you unlock them.")
                     .foregroundStyle(.secondary)
                 Button("Unlock with Touch ID or Password") { Task { await session.authenticateLocally() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
             case .checking:
                 ProgressView()
             case .needsPINSetup:
@@ -317,7 +317,7 @@ struct LockedFolderView: View {
                 SecureField("New PIN", text: $pin).frame(width: 160)
                 SecureField("Repeat PIN", text: $confirmPIN).frame(width: 160)
                 Button("Set PIN") { Task { await session.setupPIN(pin) } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(!Self.isValid(pin) || pin != confirmPIN || session.isWorking)
             case .needsPIN:
                 Text("Enter your PIN")
@@ -332,7 +332,7 @@ struct LockedFolderView: View {
                         if digits.count == 6 { submit() }
                     }
                 Button("Unlock") { submit() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(!Self.isValid(pin) || session.isWorking)
             case .needsSignIn(let reason):
                 Text(reason + " Sign in once with your Immich account. Your password isn't saved.")
@@ -343,7 +343,7 @@ struct LockedFolderView: View {
                 SecureField("Password", text: $password).textFieldStyle(.roundedBorder).frame(width: 260)
                     .onSubmit { signIn() }
                 Button("Sign In") { signIn() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(email.isEmpty || password.isEmpty || session.isWorking)
             case .unlocked:
                 EmptyView()

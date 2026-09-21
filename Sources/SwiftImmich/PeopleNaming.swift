@@ -138,7 +138,7 @@ struct PersonNameEditor: View {
                             }
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .padding(.vertical, 2)
                     }
                     Text(chooseHint)
@@ -159,7 +159,7 @@ struct PersonNameEditor: View {
                 Spacer()
                 Button("Cancel", action: onClose)
                 Button("Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .disabled(isWorking || trimmed.isEmpty || trimmed == current?.name)
                     .keyboardShortcut(.defaultAction)
             }

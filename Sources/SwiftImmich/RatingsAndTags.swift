@@ -230,6 +230,7 @@ struct TagsSidebarGroup: View {
                 Label(tag.value, systemImage: "tag")
                     .lineLimit(1)
                     .padding(.vertical, 2)
+                    .sidebarHover()
                     .tag(SidebarSelection.tag(id: tag.id, name: tag.value))
                     .contextMenu {
                         Button("Delete Tag…", role: .destructive) { selection.pendingDeleteTag = tag }

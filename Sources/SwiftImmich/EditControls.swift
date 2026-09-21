@@ -68,7 +68,7 @@ struct EditControls: View {
                                     .foregroundStyle(adjustments.look == look ? Color.accentColor : Color.secondary)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .accessibilityLabel("\(look.title) look")
                         .accessibilityAddTraits(adjustments.look == look ? .isSelected : [])
                     }
@@ -134,7 +134,7 @@ struct EditControls: View {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.caption)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverPlainStyle())
             .foregroundStyle(.secondary)
             .opacity(value == identity ? 0 : 1)
             .help("Reset \(label)")

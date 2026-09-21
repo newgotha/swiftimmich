@@ -40,7 +40,8 @@ struct AssetThumbnailView: View {
             }
     }
 
-    var body: some View {
+    /// The picture and its badges, at the cell's full size.
+    private var picture: some View {
         ZStack(alignment: .bottomTrailing) {
             Rectangle()
                 .fill(Color.gray.opacity(0.15))
@@ -56,17 +57,6 @@ struct AssetThumbnailView: View {
             if isFocused && !isSelected {
                 Rectangle()
                     .strokeBorder(Color.accentColor, lineWidth: 3)
-            }
-
-            if isSelected {
-                Rectangle()
-                    .strokeBorder(Color.accentColor, lineWidth: 4)
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title3)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, Color.accentColor)
-                    .padding(6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
 
             if asset.livePhotoVideoId != nil {
@@ -116,6 +106,37 @@ struct AssetThumbnailView: View {
             }
         }
         .frame(width: size.width, height: size.height)
+    }
+
+    /// A selected photo shrinks a little inside its cell, over a tinted margin, with a check mark,
+    /// so it's easy to tell apart from the rest at a glance.
+    private static let selectedScale: CGFloat = 0.86
+
+    var body: some View {
+        ZStack {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.16))
+            }
+            picture
+                .clipShape(RoundedRectangle(cornerRadius: isSelected ? 7 : 0, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: isSelected ? 7 : 0, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: isSelected ? 2.5 : 0)
+                )
+                .scaleEffect(isSelected ? Self.selectedScale : 1)
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.accentColor)
+                    .shadow(color: .black.opacity(0.25), radius: 1.5)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .animation(Motion.animation(.easeOut(duration: 0.16)), value: isSelected)
         .task(id: asset.id) {
             image = await ThumbnailLoader.shared.image(for: asset.id, request: request)
         }

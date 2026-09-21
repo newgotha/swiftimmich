@@ -69,7 +69,7 @@ struct ShareLinkSheet: View {
                     Button("Open in Browser") { NSWorkspace.shared.open(created) }
                     Spacer()
                     Button("Done", action: onClose)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(HoverProminentStyle())
                         .keyboardShortcut(.defaultAction)
                 }
             } else {
@@ -99,7 +99,7 @@ struct ShareLinkSheet: View {
                     Spacer()
                     Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
                     Button("Create Link") { Task { await create() } }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(HoverProminentStyle())
                         .keyboardShortcut(.defaultAction)
                         .disabled(isWorking)
                 }

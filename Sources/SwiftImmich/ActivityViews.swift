@@ -72,7 +72,7 @@ struct ActivitySheet: View {
                             Spacer(minLength: 0)
                             if comment.user.id == me {
                                 Button { Task { await remove(comment) } } label: { Image(systemName: "trash") }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(HoverPlainStyle())
                                     .foregroundStyle(.secondary)
                                     .help("Delete your comment")
                             }

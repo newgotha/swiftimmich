@@ -175,6 +175,7 @@ struct SidebarView: View {
                 }
             }
             .padding(.vertical, 4)
+            .sidebarHover(isSelected: selection == .section(section))
             .tag(SidebarSelection.section(section))
         } else {
             switch block {
@@ -207,6 +208,7 @@ struct SidebarView: View {
                     }
                 }
                 .padding(.vertical, 4)
+                .sidebarHover(isSelected: selection == .section(section))
                 .tag(SidebarSelection.section(section))
             }
         } label: {
@@ -219,6 +221,7 @@ struct SidebarView: View {
                 }
             }
             .padding(.vertical, 4)
+            .sidebarHover()
         }
     }
 
@@ -227,11 +230,13 @@ struct SidebarView: View {
             ForEach(MediaType.allCases) { type in
                 Label(type.title, systemImage: type.icon)
                     .padding(.vertical, 4)
+                    .sidebarHover(isSelected: selection == .mediaType(type))
                     .tag(SidebarSelection.mediaType(type))
             }
         } label: {
             Label("Media Types", systemImage: "square.grid.2x2")
                 .padding(.vertical, 4)
+                .sidebarHover()
         }
     }
 
@@ -262,6 +267,7 @@ struct SidebarView: View {
                         albumDropTargetId == album.id ? Color.accentColor.opacity(0.3) : Color.clear,
                         in: RoundedRectangle(cornerRadius: 6)
                     )
+                    .sidebarHover(isSelected: selection == .album(id: album.id, name: album.albumName))
                     .tag(SidebarSelection.album(id: album.id, name: album.albumName))
                     .dropDestination(for: DraggedAssets.self) { items, _ in
                         let ids = items.flatMap(\.ids)
@@ -289,6 +295,7 @@ struct SidebarView: View {
         } label: {
             Label(SidebarSection.albums.title, systemImage: SidebarSection.albums.icon)
                 .padding(.vertical, 4)
+                .sidebarHover(isSelected: selection == .section(.albums))
                 .tag(SidebarSelection.section(.albums))
         }
     }

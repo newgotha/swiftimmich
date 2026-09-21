@@ -284,7 +284,7 @@ struct TransferBanner: View {
                         Text(summary)
                             .font(.callout)
                         Button { center.dismiss() } label: { Image(systemName: "xmark") }
-                            .buttonStyle(.plain)
+                            .buttonStyle(HoverPlainStyle())
                     }
                 }
                 if !center.isRunning, let first = center.failures.first {

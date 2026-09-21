@@ -227,7 +227,7 @@ struct SearchFilterBar: View {
                 Button { showPlacePopover = true } label: {
                     FilterPill(title: placeTitle, isActive: !model.filters.country.isEmpty || !model.filters.city.isEmpty)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
                 .popover(isPresented: $showPlacePopover, arrowEdge: .bottom) {
                     PlaceFilterPopover(service: service, filters: filters) { showPlacePopover = false }
                 }
@@ -258,16 +258,16 @@ struct SearchFilterBar: View {
                 Button { model.filters.favoritesOnly.toggle() } label: {
                     FilterPill(title: "Favorites", isActive: model.filters.favoritesOnly)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
 
                 if model.filters.isActive {
                     Button("Clear") { model.filters = SearchFilters() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .foregroundStyle(Color.accentColor)
                 }
                 if model.filters.isActive || !query.isEmpty {
                     Button("Save Search…") { saveName = query; showSaveAlert = true }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .foregroundStyle(Color.accentColor)
                 }
             }
@@ -337,7 +337,7 @@ private struct PlaceFilterPopover: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     Button("Anywhere") { filters.country = ""; filters.city = ""; onClose() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .padding(.vertical, 3)
                     ForEach(shown, id: \.label) { entry in
                         Button {
@@ -349,7 +349,7 @@ private struct PlaceFilterPopover: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                         .padding(.vertical, 3)
                     }
                 }
@@ -380,7 +380,7 @@ struct SavedSearchesSidebarGroup: View {
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HoverPlainStyle())
                     .padding(.vertical, 2)
                     .contextMenu {
                         Button("Delete Saved Search", role: .destructive) { model.remove(search) }

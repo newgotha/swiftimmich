@@ -37,7 +37,7 @@ struct AssetInfoPanel: View {
                     Label("Edit", systemImage: "pencil")
                         .font(.callout)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
                 .foregroundStyle(Color.accentColor)
                 .disabled(info == nil)
                 .opacity(canEdit ? 1 : 0)
@@ -47,7 +47,7 @@ struct AssetInfoPanel: View {
                         .foregroundStyle(.secondary)
                         .accessibilityLabel("Close info")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverPlainStyle())
             }
 
             if let info {
@@ -165,7 +165,7 @@ struct AssetInfoPanel: View {
                                 .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
                                 .accessibilityAddTraits(star <= rating ? .isSelected : [])
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(HoverPlainStyle())
                     }
                     if rating < 0 {
                         Text("Rejected").font(.caption).foregroundStyle(.secondary)
@@ -187,7 +187,7 @@ struct AssetInfoPanel: View {
                                 Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
                                     .accessibilityLabel("Remove tag \(tag.value)")
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(HoverPlainStyle())
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -254,7 +254,7 @@ struct AssetInfoPanel: View {
             .frame(width: 84)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverPlainStyle())
         .popover(
             isPresented: Binding(
                 get: { editingFaceId == face.id },

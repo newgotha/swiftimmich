@@ -140,7 +140,7 @@ struct AlbumSharingSheet: View {
             HStack {
                 Spacer()
                 Button("Done", action: onClose)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HoverProminentStyle())
                     .keyboardShortcut(.defaultAction)
             }
         }
