@@ -5,7 +5,7 @@ import SwiftUI
 struct JustifiedAssetGridView: View {
     let assets: [AssetSummary]
     let service: ImmichService
-    @AppStorage(GridZoom.key) private var zoom = GridZoom.standard
+    @ObservedObject private var zoom = GridZoomStore.shared
     var spacing: CGFloat = 8
     var onDelete: ((String) -> Void)? = nil
     /// Set when this grid is showing one specific album's contents, so the viewer can
@@ -86,7 +86,7 @@ struct JustifiedAssetGridView: View {
         let rows = JustifiedLayout.rows(
             for: assets,
             containerWidth: containerWidth,
-            targetRowHeight: CGFloat(GridZoom.clamped(zoom)),
+            targetRowHeight: CGFloat(zoom.value),
             spacing: spacing
         )
 

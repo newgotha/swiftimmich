@@ -61,3 +61,27 @@ enum GridZoom {
 
     static func clamped(_ value: Double) -> Double { min(max(value, range.lowerBound), range.upperBound) }
 }
+
+
+/// Holds the thumbnail size. Kept out of `@AppStorage`, which re-renders every view that uses
+/// it whenever *any* preference changes — and the toolbar writes preferences constantly, so
+/// each photo grid redrew in a loop while a photo was open.
+@MainActor
+final class GridZoomStore: ObservableObject {
+    static let shared = GridZoomStore()
+
+    @Published var value: Double {
+        didSet {
+            let limited = GridZoom.clamped(value)
+            if limited != value { value = limited; return }
+            UserDefaults.standard.set(value, forKey: GridZoom.key)
+        }
+    }
+
+    private init() {
+        value = GridZoom.clamped(UserDefaults.standard.object(forKey: GridZoom.key) as? Double ?? GridZoom.standard)
+    }
+
+    func adjust(by step: Double) { value += step }
+    func reset() { value = GridZoom.standard }
+}

@@ -151,3 +151,20 @@ final class PersonManagementTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.captured.count, 2)
     }
 }
+
+@MainActor
+final class GridZoomStoreTests: XCTestCase {
+    func testTheStoreKeepsTheSizeInRangeAndAdjusts() {
+        let store = GridZoomStore.shared
+        let original = store.value
+        defer { store.value = original }
+        store.reset()
+        XCTAssertEqual(store.value, GridZoom.standard)
+        store.adjust(by: 30)
+        XCTAssertEqual(store.value, GridZoom.standard + 30)
+        store.adjust(by: 10_000)
+        XCTAssertEqual(store.value, GridZoom.range.upperBound)
+        store.adjust(by: -10_000)
+        XCTAssertEqual(store.value, GridZoom.range.lowerBound)
+    }
+}

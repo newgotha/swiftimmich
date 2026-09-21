@@ -12,7 +12,7 @@ struct PhotoGridView: View {
     @StateObject private var model: PhotoLibraryModel
     @State private var grouping: TimelineGrouping = .months
     @State private var isNamingPerson = false
-    @AppStorage(GridZoom.key) private var zoom = GridZoom.standard
+    @ObservedObject private var zoom = GridZoomStore.shared
     @EnvironmentObject private var directory: PeopleDirectory
     @EnvironmentObject private var selection: GridSelection
     @Environment(\.dismiss) private var dismiss
@@ -249,7 +249,7 @@ struct PhotoGridView: View {
     private var zoomControl: some View {
         HStack(spacing: 6) {
             Image(systemName: "photo").font(.system(size: 9))
-            Slider(value: $zoom, in: GridZoom.range)
+            Slider(value: $zoom.value, in: GridZoom.range)
                 .frame(width: 110)
                 .accessibilityLabel("Thumbnail size")
             Image(systemName: "photo").font(.system(size: 14))

@@ -18,11 +18,6 @@ struct SwiftImmichApp: App {
         AppLog.info("launch \(info?["CFBundleShortVersionString"] as? String ?? "?") on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
     }
 
-    private func adjustZoom(by step: Double) {
-        let current = UserDefaults.standard.object(forKey: GridZoom.key) as? Double ?? GridZoom.standard
-        UserDefaults.standard.set(GridZoom.clamped(current + step), forKey: GridZoom.key)
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView(photosImporter: importer)
@@ -46,11 +41,11 @@ struct SwiftImmichApp: App {
                 Button("Check for Updates…") { Task { await UpdateChecker.shared.checkNow() } }
             }
             CommandGroup(after: .toolbar) {
-                Button("Larger Thumbnails") { adjustZoom(by: 30) }
+                Button("Larger Thumbnails") { GridZoomStore.shared.adjust(by: 30) }
                     .keyboardShortcut("+", modifiers: [.command])
-                Button("Smaller Thumbnails") { adjustZoom(by: -30) }
+                Button("Smaller Thumbnails") { GridZoomStore.shared.adjust(by: -30) }
                     .keyboardShortcut("-", modifiers: [.command])
-                Button("Actual Size Thumbnails") { UserDefaults.standard.set(GridZoom.standard, forKey: GridZoom.key) }
+                Button("Actual Size Thumbnails") { GridZoomStore.shared.reset() }
                     .keyboardShortcut("0", modifiers: [.command])
             }
             CommandGroup(replacing: .help) {

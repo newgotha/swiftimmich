@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+
+- **Timeline scrubber.** A date strip on the right edge of the Months and Years views: click or drag to jump to any month in a large library.
+- **Thumbnail size.** A slider on every photo page, plus ⌘+, ⌘− and ⌘0 in the View menu.
+- **People management.** Favourite people (shown first), hide and unhide them, set birthdays, and choose a person's cover photo from their grid.
+- **Welcome page.** First launch explains the server address and API key and tests the connection before continuing.
+- **Help > Report a Problem…** copies your app and macOS versions and the recent error log so you can paste them into a GitHub issue.
+
 ## 1.0.3
 
 - The Storage page now sits in a centred card like the other tool pages.

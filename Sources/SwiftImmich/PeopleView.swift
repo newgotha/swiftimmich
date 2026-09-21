@@ -5,12 +5,13 @@ struct PeopleView: View {
     let service: ImmichService
 
     @EnvironmentObject private var directory: PeopleDirectory
-    @EnvironmentObject private var selection: GridSelection
     @State private var editingPersonId: String?
     @State private var birthdayPersonId: String?
     @State private var showingHidden = false
     @State private var hiddenPeople: [Person] = []
     @State private var coverRevision = 0
+    /// Kept local: observing the grid's shared selection state here made this page redraw on every hover.
+    @State private var errorMessage: String?
 
     private let columns = [GridItem(.adaptive(minimum: 110, maximum: 140), spacing: 16)]
     private let contentLeadingPadding: CGFloat = 20
@@ -59,6 +60,11 @@ struct PeopleView: View {
         .navigationTitle("")
         .task { await directory.loadIfNeeded(service: service) }
         .onReceive(NotificationCenter.default.publisher(for: .peopleChanged)) { _ in coverRevision += 1 }
+        .alert("People", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
     }
 
     private func card(for person: Person) -> some View {
@@ -133,7 +139,7 @@ struct PeopleView: View {
             do {
                 hiddenPeople = try await service.fetchPeople(includeHidden: true).filter(\.isHidden)
             } catch {
-                selection.message = "Couldn't load hidden people: \(FriendlyError.message(for: error))"
+                errorMessage = "Couldn't load hidden people: \(FriendlyError.message(for: error))"
             }
         }
     }
@@ -152,7 +158,7 @@ struct PeopleView: View {
                 directory.upsert(updated)
             }
         } catch {
-            selection.message = "Couldn't update the person: \(FriendlyError.message(for: error))"
+            errorMessage = "Couldn't update the person: \(FriendlyError.message(for: error))"
         }
     }
 
