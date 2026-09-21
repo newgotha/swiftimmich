@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0
+
+- **Video tools.** Open one of your videos and use the new bar at the top right of the player:
+  - **Trim…** downloads the original and opens an editor with a preview, a filmstrip and a handle at each end. Save it as a new video (the original is kept). The default cut is quick and lossless, at the nearest keyframe; **Exact cut** re-encodes so it lands exactly on the handles.
+  - **Save Frame** saves the picture on screen, at full size, as a new photo.
+  - **Speed** plays at 0.5×, 1.5× or 2×.
+
 ## 2.4.0
 
 - **Photo editing.** The Edit panel now has one-tap **Looks** (Vivid, Dramatic, Warm, Cool, Fade, Chrome, Instant, Mono, Silvertone and Noir, with live previews and a strength slider), plus **Shadows**, **Highlights**, **Warmth**, **Sharpen** and **Vignette** sliders and a **Straighten** slider that levels a tilted horizon without leaving empty corners. Looks and these adjustments are saved as a new photo or over the original, like colour edits.
