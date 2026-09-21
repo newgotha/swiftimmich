@@ -2,6 +2,20 @@
 
 Users get updates from GitHub Releases: the app checks the repository's **latest release** and, if its tag is newer than the running version, offers to download it.
 
+## Before you release
+
+Run the checks that catch a frozen window:
+
+```bash
+swift test                          # includes a test that renders the grid and viewer and fails if they redraw in a loop
+Scripts/package_release.sh
+Scripts/smoke_check.sh dist/SwiftImmich.app   # launches the built app, checks it settles to idle, then forces a freeze and checks the watchdog records it
+```
+
+The smoke check quits any running SwiftImmich and may leave a dialog in the app; that's the watchdog offering to report the forced freeze. It cannot open your photos, so still open a photo from the Library and from a person's page by hand before publishing.
+
+If the app ever does freeze for a user, it saves a stack sample to `~/Library/Logs/SwiftImmich Hangs/` and offers to attach a summary to **Help > Report a Problem…**.
+
 ## Steps
 
 1. Change the number in `VERSION` (for example `1.0.1`) and add a section to `CHANGELOG.md`.

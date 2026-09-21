@@ -7,9 +7,11 @@ struct SwiftImmichApp: App {
 
     init() {
         AppLog.installExceptionHook()
+        HangDiagnostics.install()
         AppearanceMode.saved.apply()
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
+            HangDiagnostics.offerReport()
             await UpdateChecker.shared.checkAtLaunchIfDue()
         }
         let info = Bundle.main.infoDictionary

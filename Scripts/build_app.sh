@@ -50,6 +50,10 @@ echo "Assembling ${APP_DIR}…"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "${BIN_DIR}/${APP_NAME}" "$APP_DIR/Contents/MacOS/${APP_NAME}"
+# Drop the debug-map entries that point back into the build folder. Without this, the freeze
+# watchdog's stack sample (which runs as a child of the app) stalls trying to read them from
+# ~/Documents, where macOS asks the app for permission. Function names are kept.
+strip -S "$APP_DIR/Contents/MacOS/${APP_NAME}"
 cp "$ICON_ICNS" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST

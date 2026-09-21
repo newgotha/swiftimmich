@@ -4,7 +4,7 @@ import Foundation
 /// "Help > Report a Problem…": gathers what a bug report needs into text on the clipboard
 /// and opens the issue page. The log holds errors and file names, never the API key.
 enum ProblemReport {
-    static func build(appVersion: String, macOS: String, server: String?, logLines: [String]) -> String {
+    static func build(appVersion: String, macOS: String, server: String?, logLines: [String], hangSummary: [String] = []) -> String {
         var text = """
         ## What happened
 
@@ -16,6 +16,11 @@ enum ProblemReport {
         - macOS: \(macOS)
         """
         if let server { text += "\n- Immich server: \(server)" }
+        if !hangSummary.isEmpty {
+            text += "\n\n## The app froze\n\nWhat it was busy doing (samples, function):\n\n```\n"
+            text += hangSummary.joined(separator: "\n")
+            text += "\n```"
+        }
         text += "\n\n## Recent log\n\n```\n"
         text += logLines.isEmpty ? "(the log is empty)" : logLines.joined(separator: "\n")
         text += "\n```\n"
@@ -30,20 +35,21 @@ enum ProblemReport {
     }
 
     @MainActor
-    static func start(serverVersion: String? = nil) {
+    static func start(serverVersion: String? = nil, hangSample: URL? = nil) {
         let info = Bundle.main.infoDictionary
         let report = build(
             appVersion: info?["CFBundleShortVersionString"] as? String ?? "unknown",
             macOS: ProcessInfo.processInfo.operatingSystemVersionString,
             server: serverVersion,
-            logLines: recentLog()
+            logLines: recentLog(),
+            hangSummary: hangSample.map { HangSummary.summary(of: $0) } ?? []
         )
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(report, forType: .string)
 
         let alert = NSAlert()
         alert.messageText = "Report a Problem"
-        alert.informativeText = "A report with your app and macOS versions and the recent error log is on your clipboard. Paste it into the issue that opens next, and describe what went wrong. Look it over first — the log can mention file names."
+        alert.informativeText = "A report with your app and macOS versions and the recent error log\(hangSample == nil ? "" : " and a summary of the freeze") is on your clipboard. Paste it into the issue that opens next, and describe what went wrong. Look it over first — the log can mention file names."
         alert.addButton(withTitle: "Open GitHub")
         alert.addButton(withTitle: "Cancel")
         if alert.runModal() == .alertFirstButtonReturn,
