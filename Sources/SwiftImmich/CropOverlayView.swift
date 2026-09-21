@@ -11,6 +11,8 @@ import SwiftUI
 struct CropOverlayView: View {
     let imageSize: CGSize
     @Binding var cropRect: CGRect
+    /// When set, corner drags keep this width / height ratio (in the rectangle's own fractional units).
+    var lockedRatio: CGFloat? = nil
 
     @State private var dragStartRect: CGRect?
 
@@ -19,6 +21,15 @@ struct CropOverlayView: View {
 
     private enum Corner: CaseIterable {
         case topLeft, topRight, bottomLeft, bottomRight
+
+        var geometry: CropGeometry.Corner {
+            switch self {
+            case .topLeft: return .topLeft
+            case .topRight: return .topRight
+            case .bottomLeft: return .bottomLeft
+            case .bottomRight: return .bottomRight
+            }
+        }
     }
 
     private var absoluteRect: CGRect {
@@ -96,7 +107,11 @@ struct CropOverlayView: View {
                 if dragStartRect == nil { dragStartRect = cropRect }
                 let dx = value.translation.width / imageSize.width
                 let dy = value.translation.height / imageSize.height
-                cropRect = resizedRect(from: start, corner: corner, dx: dx, dy: dy)
+                var resized = resizedRect(from: start, corner: corner, dx: dx, dy: dy)
+                if let lockedRatio {
+                    resized = CropGeometry.constrained(resized, moving: corner.geometry, start: start, fractionalRatio: lockedRatio, minSize: minFractionalSize)
+                }
+                cropRect = resized
             }
             .onEnded { _ in dragStartRect = nil }
     }

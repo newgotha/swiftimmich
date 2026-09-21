@@ -51,6 +51,14 @@ struct PhotoViewerView: View {
     @State private var editErrorMessage: String?
     @State private var isCropping = false
     @State private var cropRect: CGRect = .zero
+    @State private var cropAspect: CropAspect = .free
+    @State private var cropPortrait = false
+    /// The picture straightened by the Straighten slider; the base for crops and adjustments while it's set.
+    @State private var straightenedImage: NSImage?
+    @State private var straightenTask: Task<Void, Never>?
+    /// Whether the server holds crop / rotate / mirror edits for this photo.
+    @State private var isServerEdited = false
+    @State private var showRevertConfirmation = false
     @State private var renderedImageSize: CGSize = .zero
     @State private var showEditOverlay = false
     @State private var showInfoPanel = false
@@ -717,7 +725,7 @@ struct PhotoViewerView: View {
     /// start from this — never from `displayImage`, which may already have the
     /// current adjustments baked in and would apply them twice.
     private func baseImage(for asset: AssetSummary) -> NSImage? {
-        pendingCroppedImage ?? imageCache[asset.id]
+        pendingCroppedImage ?? straightenedImage ?? imageCache[asset.id]
     }
 
     @ViewBuilder
@@ -749,7 +757,7 @@ struct PhotoViewerView: View {
                             .scaleEffect(isCropping ? 1 : scale)
 
                         if isCropping {
-                            CropOverlayView(imageSize: fitted, cropRect: $cropRect)
+                            CropOverlayView(imageSize: fitted, cropRect: $cropRect, lockedRatio: lockedCropRatio)
                         }
 
                     }
@@ -791,6 +799,28 @@ struct PhotoViewerView: View {
         HStack {
             Button("Cancel") { isCropping = false }
                 .buttonStyle(.bordered)
+            Spacer()
+            Menu {
+                ForEach(CropAspect.allCases) { aspect in
+                    Button {
+                        chooseCropAspect(aspect)
+                    } label: {
+                        if cropAspect == aspect { Label(aspect.title, systemImage: "checkmark") } else { Text(aspect.title) }
+                    }
+                }
+            } label: {
+                Label(cropAspect.title, systemImage: "aspectratio")
+            }
+            .fixedSize()
+            Button {
+                flipCropAspect()
+            } label: {
+                Image(systemName: "rectangle.portrait.rotate")
+                    .accessibilityLabel("Switch between portrait and landscape")
+            }
+            .buttonStyle(.bordered)
+            .disabled(!cropAspect.canFlip)
+            .help("Switch between portrait and landscape")
             Spacer()
             Button("Apply Crop") { confirmCrop(asset) }
                 .buttonStyle(.borderedProminent)
@@ -856,21 +886,26 @@ struct PhotoViewerView: View {
                 }
             }
             Divider()
-            adjustmentSlider("Brightness", range: -0.5...0.5, value: Binding(
-                get: { pendingAdjustments.brightness },
-                set: { newValue in adjustmentChanged(asset) { $0.brightness = newValue } }
-            ))
-            adjustmentSlider("Contrast", range: 0.5...1.5, value: Binding(
-                get: { pendingAdjustments.contrast },
-                set: { newValue in adjustmentChanged(asset) { $0.contrast = newValue } }
-            ))
-            adjustmentSlider("Saturation", range: 0...2, value: Binding(
-                get: { pendingAdjustments.saturation },
-                set: { newValue in adjustmentChanged(asset) { $0.saturation = newValue } }
-            ))
-            Text("More editing tools are coming soon. Since Immich can't store auto-enhance or color adjustments on the original file, saving will ask whether to make a new photo or replace the original.")
+            ScrollView {
+                EditControls(
+                    adjustments: pendingAdjustments,
+                    baseImage: baseImage(for: asset),
+                    cropIsPending: pendingCroppedImage != nil,
+                    change: { mutate in adjustmentChanged(asset, mutate) },
+                    changeStraighten: { straightenChanged(asset, $0) }
+                )
+                .padding(.trailing, 8)
+            }
+            .frame(maxHeight: 300)
+            Text("Immich can't store looks or colour changes on the original file, so saving asks whether to make a new photo or replace the original.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if isServerEdited {
+                Button("Revert to Original…") { showRevertConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(isApplyingEdit)
+                    .help("Removes the crop, rotation and mirroring saved for this photo")
+            }
             HStack {
                 Button("Discard") { discardPendingEdits() }
                     .buttonStyle(.bordered)
@@ -889,14 +924,13 @@ struct PhotoViewerView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .padding()
-    }
-
-    private func adjustmentSlider(_ label: String, range: ClosedRange<Double>, value: Binding<Double>) -> some View {
-        HStack {
-            Text(label)
-                .font(.subheadline)
-                .frame(width: 80, alignment: .leading)
-            Slider(value: value, in: range)
+        .task(id: asset.id) {
+            isServerEdited = (try? await service.fetchAssetInfo(assetId: asset.id))?.isEdited == true
+        }
+        .confirmationDialog("Revert to the original?", isPresented: $showRevertConfirmation) {
+            Button("Revert to Original", role: .destructive) { revertToOriginal(asset) }
+        } message: {
+            Text("This removes the crop, rotation and mirroring saved for this photo on your server. The original file isn't touched.")
         }
     }
 
@@ -972,6 +1006,8 @@ struct PhotoViewerView: View {
         pendingCropPixelRect = nil
         pendingCropFraction = nil
         pendingAdjustments = .identity
+        straightenTask?.cancel()
+        straightenedImage = nil
         adjustedPreviewImage = nil
         previewNeedsRerender = false
         hasUnsavedChanges = false
@@ -994,6 +1030,8 @@ struct PhotoViewerView: View {
             // the image's actual on-screen size, so it's correct even if that size
             // hasn't finished settling yet (e.g. mid-shrink for the bottom bar).
             cropRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+            cropAspect = .free
+            cropPortrait = false
             scale = 1
         }
         withMotion { isCropping.toggle() }
@@ -1075,6 +1113,77 @@ struct PhotoViewerView: View {
         }
     }
 
+    private var displayedAspect: CGFloat {
+        renderedImageSize.height > 0 ? renderedImageSize.width / renderedImageSize.height : 1
+    }
+
+    /// The crop rectangle's own width / height ratio while a fixed shape is chosen.
+    private var lockedCropRatio: CGFloat? {
+        guard let pixel = cropAspect.pixelRatio(imageAspect: displayedAspect, portrait: cropPortrait) else { return nil }
+        return CropGeometry.fractionalRatio(pixelRatio: pixel, imageAspect: displayedAspect)
+    }
+
+    private func chooseCropAspect(_ aspect: CropAspect) {
+        cropAspect = aspect
+        // Start in the picture's own orientation; the flip button switches it.
+        cropPortrait = displayedAspect < 1
+        if let ratio = lockedCropRatio { cropRect = CropGeometry.fit(fractionalRatio: ratio) }
+    }
+
+    private func flipCropAspect() {
+        cropPortrait.toggle()
+        if let ratio = lockedCropRatio { cropRect = CropGeometry.fit(fractionalRatio: ratio) }
+    }
+
+    /// The Straighten slider. Crops are drawn over the straightened picture, so changing the angle
+    /// starts any crop over; the straightened picture becomes the base everything else renders from.
+    private func straightenChanged(_ asset: AssetSummary, _ degrees: Double) {
+        if pendingCroppedImage != nil {
+            pendingCroppedImage = nil
+            pendingCropPixelRect = nil
+            pendingCropFraction = nil
+        }
+        let angle = abs(degrees) < 0.05 ? 0 : degrees
+        pendingAdjustments.straighten = angle
+        hasUnsavedChanges = true
+        straightenTask?.cancel()
+        let source = imageCache[asset.id]
+        straightenTask = Task {
+            try? await Task.sleep(for: .milliseconds(30))
+            guard !Task.isCancelled else { return }
+            let rendered: NSImage? = angle == 0 ? nil : await Task.detached(priority: .userInitiated) {
+                source.flatMap { ImageAdjustments.renderStraightened(of: $0, degrees: angle) }
+            }.value
+            guard !Task.isCancelled, assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id else { return }
+            straightenedImage = rendered
+            adjustedPreviewImage = nil
+            refreshAdjustedPreview(for: asset)
+        }
+    }
+
+    /// Removes the crop / rotate / mirror edits the server holds for this photo.
+    private func revertToOriginal(_ asset: AssetSummary) {
+        isApplyingEdit = true
+        Task {
+            defer { isApplyingEdit = false }
+            do {
+                try await service.applyEdits(assetId: asset.id, actions: [])
+                isServerEdited = false
+                resetPendingEditState()
+                // The server rebuilds its preview in the background, so look again shortly after too.
+                for pause in [0.0, 4.0] {
+                    if pause > 0 { try? await Task.sleep(for: .seconds(pause)) }
+                    await ThumbnailLoader.shared.invalidate(assetId: asset.id)
+                    imageCache[asset.id] = nil
+                    NotificationCenter.default.post(name: .assetEdited, object: asset.id)
+                    await preload(asset)
+                }
+            } catch {
+                editErrorMessage = "Couldn't revert: \(error)"
+            }
+        }
+    }
+
     /// Every slider goes through here: apply the change, mark the edit unsaved, and
     /// re-render the preview.
     private func adjustmentChanged(_ asset: AssetSummary, _ mutate: (inout ImageAdjustments) -> Void) {
@@ -1092,7 +1201,7 @@ struct PhotoViewerView: View {
     /// thread for every drag tick (the first version) made the sliders visibly laggy.
     /// The short sleep caps how often the whole viewer is asked to redraw.
     private func refreshAdjustedPreview(for asset: AssetSummary) {
-        guard !pendingAdjustments.isIdentity else {
+        guard !pendingAdjustments.isTonalIdentity else {
             adjustedPreviewImage = nil
             previewNeedsRerender = false
             return
@@ -1111,7 +1220,7 @@ struct PhotoViewerView: View {
                 // Only publish if the user is still looking at this photo with
                 // adjustments still pending — they may have swiped away or discarded
                 // while this render was running.
-                if assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id, !pendingAdjustments.isIdentity {
+                if assets.indices.contains(currentIndex), assets[currentIndex].id == asset.id, !pendingAdjustments.isTonalIdentity {
                     adjustedPreviewImage = rendered
                 }
                 try? await Task.sleep(for: .milliseconds(33))
@@ -1129,6 +1238,8 @@ struct PhotoViewerView: View {
             pendingCropPixelRect = nil
             pendingCropFraction = nil
             pendingAdjustments = .identity
+            straightenTask?.cancel()
+            straightenedImage = nil
             adjustedPreviewImage = nil
             previewNeedsRerender = false
             hasUnsavedChanges = false
@@ -1188,6 +1299,7 @@ struct PhotoViewerView: View {
             defer { isApplyingEdit = false }
             do {
                 try await service.applyEdits(assetId: asset.id, actions: actions)
+                isServerEdited = true
                 let baked = baseImage.flatMap { bakedImage(from: $0, rotation: rotation, mirror: mirror) }
                 if let baked {
                     imageCache[asset.id] = baked

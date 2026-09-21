@@ -25,11 +25,109 @@ struct ImageAdjustments: Equatable {
     var saturation: Double = 1
     var autoEnhance: AutoEnhance?
 
+    /// A one-tap style, blended in by `lookIntensity` (0...1).
+    var look: Look = .none
+    var lookIntensity: Double = 1
+    /// -1 (cooler) ... 1 (warmer).
+    var warmth: Double = 0
+    /// 0...1: how much to lift dark areas.
+    var shadows: Double = 0
+    /// 0...1: how much to pull bright areas back.
+    var highlights: Double = 0
+    /// 0...1
+    var sharpness: Double = 0
+    /// 0...1: darkening towards the corners.
+    var vignette: Double = 0
+    /// Degrees, -15...15: levels a tilted horizon. Applied to the picture first, before any crop.
+    var straighten: Double = 0
+
     static let identity = ImageAdjustments()
 
     var isIdentity: Bool { self == .identity }
 
-    func apply(to image: CIImage) -> CIImage {
+    /// True when only the geometry (straighten) differs from an untouched photo.
+    var isTonalIdentity: Bool {
+        var copy = self
+        copy.straighten = 0
+        return copy == .identity
+    }
+
+    /// Everything: straighten first, then the colour and detail changes.
+    func apply(to image: CIImage, includeStraighten: Bool = true) -> CIImage {
+        var result = includeStraighten ? straightened(image) : image
+        result = applyLook(to: result)
+        result = applyTone(to: result)
+        result = applyFinishing(to: result)
+        return result
+    }
+
+    /// Rotates by `straighten` degrees about the centre and zooms just enough that no empty
+    /// corners show, keeping the picture's original size and shape so a crop drawn over it lines up.
+    func straightened(_ image: CIImage) -> CIImage {
+        guard straighten != 0 else { return image }
+        let extent = image.extent
+        let radians = straighten * .pi / 180
+        let (w, h) = (extent.width, extent.height)
+        let zoom = abs(cos(radians)) + abs(sin(radians)) * max(w / h, h / w)
+        let centre = CGPoint(x: extent.midX, y: extent.midY)
+        let transform = CGAffineTransform(translationX: centre.x, y: centre.y)
+            .rotated(by: radians)
+            .scaledBy(x: zoom, y: zoom)
+            .translatedBy(x: -centre.x, y: -centre.y)
+        return image.transformed(by: transform, highQualityDownsample: true).cropped(to: extent)
+    }
+
+    private func applyLook(to image: CIImage) -> CIImage {
+        guard look != .none, lookIntensity > 0 else { return image }
+        let styled = look.render(image)
+        guard lookIntensity < 1, let blend = CIFilter(name: "CIDissolveTransition") else { return styled }
+        blend.setValue(image, forKey: kCIInputImageKey)
+        blend.setValue(styled, forKey: kCIInputTargetImageKey)
+        blend.setValue(lookIntensity, forKey: kCIInputTimeKey)
+        return blend.outputImage?.cropped(to: image.extent) ?? styled
+    }
+
+    /// Detail and finishing touches, after the colour work.
+    private func applyFinishing(to image: CIImage) -> CIImage {
+        var result = image
+        let extent = image.extent
+        let longest = max(extent.width, extent.height)
+
+        if warmth != 0, let filter = CIFilter(name: "CITemperatureAndTint") {
+            filter.setValue(result, forKey: kCIInputImageKey)
+            filter.setValue(CIVector(x: 6500, y: 0), forKey: "inputNeutral")
+            // A lower target white point makes the picture warmer, a higher one cooler.
+            filter.setValue(CIVector(x: 6500 - warmth * 2200, y: 0), forKey: "inputTargetNeutral")
+            if let output = filter.outputImage { result = output }
+        }
+
+        if shadows != 0 || highlights != 0, let filter = CIFilter(name: "CIHighlightShadowAdjust") {
+            filter.setValue(result, forKey: kCIInputImageKey)
+            filter.setValue(shadows, forKey: "inputShadowAmount")
+            filter.setValue(1 - highlights * 0.8, forKey: "inputHighlightAmount")
+            if let output = filter.outputImage { result = output }
+        }
+
+        if sharpness > 0, let filter = CIFilter(name: "CISharpenLuminance") {
+            filter.setValue(result, forKey: kCIInputImageKey)
+            filter.setValue(sharpness * 1.4, forKey: kCIInputSharpnessKey)
+            // In pixels, so scale it with the picture: the preview is small, the export full size.
+            filter.setValue(1.2 * max(1, longest / 1200), forKey: kCIInputRadiusKey)
+            if let output = filter.outputImage { result = output }
+        }
+
+        if vignette > 0, let filter = CIFilter(name: "CIVignetteEffect") {
+            filter.setValue(result, forKey: kCIInputImageKey)
+            filter.setValue(CIVector(x: extent.midX, y: extent.midY), forKey: kCIInputCenterKey)
+            filter.setValue(longest * 0.62, forKey: kCIInputRadiusKey)
+            filter.setValue(vignette * 1.1, forKey: kCIInputIntensityKey)
+            filter.setValue(0.5, forKey: "inputFalloff")
+            if let output = filter.outputImage { result = output.cropped(to: extent) }
+        }
+        return result
+    }
+
+    private func applyTone(to image: CIImage) -> CIImage {
         var result = image
 
         if let auto = autoEnhance {
@@ -90,7 +188,10 @@ struct ImageAdjustments: Equatable {
     /// A live-preview render: capped to a size comfortably above what the viewer
     /// actually shows on screen, since this runs on every slider tick and re-uploads
     /// the whole image to the display each time.
-    static func renderPreview(of base: NSImage, adjustments: ImageAdjustments) -> NSImage? {
+    ///
+    /// `includeStraighten` is off by default because the viewer straightens the base image
+    /// itself (so a crop is drawn over the straightened picture); pass true for an unstraightened base.
+    static func renderPreview(of base: NSImage, adjustments: ImageAdjustments, includeStraighten: Bool = false) -> NSImage? {
         guard let cgImage = base.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         var ciImage = CIImage(cgImage: cgImage)
         let longest = max(ciImage.extent.width, ciImage.extent.height)
@@ -99,7 +200,21 @@ struct ImageAdjustments: Equatable {
             let scale = maxDimension / longest
             ciImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         }
-        return ImageRenderer.nsImage(from: adjustments.apply(to: ciImage))
+        return ImageRenderer.nsImage(from: adjustments.apply(to: ciImage, includeStraighten: includeStraighten))
+    }
+
+    /// The picture straightened by `degrees`, for the viewer to use as its base (capped in size, like the preview).
+    static func renderStraightened(of base: NSImage, degrees: Double, maxDimension: CGFloat = 2400) -> NSImage? {
+        guard let cgImage = base.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        var ciImage = CIImage(cgImage: cgImage)
+        let longest = max(ciImage.extent.width, ciImage.extent.height)
+        if longest > maxDimension {
+            let scale = maxDimension / longest
+            ciImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        }
+        var straight = ImageAdjustments()
+        straight.straighten = degrees
+        return ImageRenderer.nsImage(from: straight.straightened(ciImage))
     }
 }
 
@@ -115,11 +230,13 @@ struct ExportRecipe: Sendable {
     /// Brightness of the preview image the user was looking at, for diagnostics.
     var previewMean: Double?
 
-    /// Order matters and matches the on-screen preview: orientation, then crop (its
-    /// fractions were drawn against the already-oriented image), then adjustments.
+    /// Order matters and matches the on-screen preview: straighten, then orientation, then crop
+    /// (its fractions were drawn against the straightened, oriented image), then the colour and
+    /// detail adjustments.
     func render(originalData: Data) -> Data? {
         guard var image = ImageRenderer.loadOriginal(originalData) else { return nil }
         let decodedMean = ImageRenderer.meanRGB(image)
+        image = adjustments.straightened(image)
 
         if rotation != 0 || mirror {
             image = image.oriented(ImageRenderer.orientation(forRotation: rotation, mirror: mirror))
@@ -136,7 +253,7 @@ struct ExportRecipe: Sendable {
             image = image.cropped(to: cropRect)
         }
 
-        image = adjustments.apply(to: image)
+        image = adjustments.apply(to: image, includeStraighten: false)
 
         let exportedMean = ImageRenderer.meanRGB(image)
         Diagnostics.log(
