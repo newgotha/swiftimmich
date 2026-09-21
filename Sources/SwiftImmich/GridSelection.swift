@@ -11,6 +11,7 @@ extension Notification.Name {
     static let assetsFavoriteChanged = Notification.Name("dev.local.swiftimmich.assetsFavoriteChanged")
     /// Posted when a grid's contents changed in a way it can't patch locally (stacking
     /// or unstacking), so the visible timeline should reload.
+    static let peopleChanged = Notification.Name("dev.local.swiftimmich.peopleChanged")
     static let gridNeedsReload = Notification.Name("dev.local.swiftimmich.gridNeedsReload")
     /// Posted after the trash is emptied, so the Recently Deleted grid can clear itself.
     static let trashEmptied = Notification.Name("dev.local.swiftimmich.trashEmptied")
@@ -227,6 +228,18 @@ final class GridSelection: ObservableObject {
         do {
             let updated = try await service.updateAlbum(id: albumId, thumbnailAssetId: asset.id)
             onAlbumUpdated?(updated)
+            message = "Cover photo updated."
+        } catch {
+            message = "Couldn't change the cover photo: \(Self.describe(error))"
+        }
+    }
+
+    func setPersonCover(personId: String, to asset: AssetSummary) async {
+        guard let service else { return }
+        do {
+            _ = try await service.updatePerson(id: personId, featureFaceAssetId: asset.id)
+            await ThumbnailLoader.shared.invalidate(assetId: "person-\(personId)")
+            NotificationCenter.default.post(name: .peopleChanged, object: personId)
             message = "Cover photo updated."
         } catch {
             message = "Couldn't change the cover photo: \(Self.describe(error))"
@@ -476,6 +489,15 @@ struct GridContextMenu: View {
                     } label: {
                         Label("Use as Album Cover", systemImage: "photo.on.rectangle")
                     }
+                }
+                Divider()
+            }
+
+            if case let .person(personId, _) = filter, targets.count == 1 {
+                Button {
+                    Task { await selection.setPersonCover(personId: personId, to: asset) }
+                } label: {
+                    Label("Use as This Person's Cover", systemImage: "person.crop.circle")
                 }
                 Divider()
             }

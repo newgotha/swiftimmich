@@ -12,6 +12,7 @@ struct PhotoGridView: View {
     @StateObject private var model: PhotoLibraryModel
     @State private var grouping: TimelineGrouping = .months
     @State private var isNamingPerson = false
+    @AppStorage(GridZoom.key) private var zoom = GridZoom.standard
     @EnvironmentObject private var directory: PeopleDirectory
     @EnvironmentObject private var selection: GridSelection
     @Environment(\.dismiss) private var dismiss
@@ -100,10 +101,15 @@ struct PhotoGridView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleRow
-                .padding(.leading, contentLeadingPadding)
-                .padding(.top, 12)
-                .padding(.bottom, 4)
+            HStack(alignment: .center) {
+                titleRow
+                Spacer(minLength: 16)
+                zoomControl
+            }
+            .padding(.leading, contentLeadingPadding)
+            .padding(.trailing, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
 
             if model.isShowingSavedCopy {
                 HStack(spacing: 8) {
@@ -123,6 +129,7 @@ struct PhotoGridView: View {
                 .padding(.bottom, 4)
             }
 
+            ScrollViewReader { proxy in
             ScrollView {
                 switch grouping {
                 case .months:
@@ -131,6 +138,14 @@ struct PhotoGridView: View {
                     yearSections
                 case .all:
                     allPhotosSection
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if showsScrubber {
+                    TimelineScrubber(model: scrubberModel, title: scrubberTitle) { key in
+                        proxy.scrollTo(grouping == .years ? String(key.prefix(4)) : key, anchor: .top)
+                    }
+                    .padding(.vertical, 40)
                 }
             }
             .overlay {
@@ -150,6 +165,7 @@ struct PhotoGridView: View {
             .task(id: grouping) {
                 guard grouping != .months else { return }
                 await model.loadAllAssets()
+            }
             }
         }
         .navigationTitle("")
@@ -184,11 +200,12 @@ struct PhotoGridView: View {
                     bucketContent(for: bucket)
                 } header: {
                     sectionHeader(monthTitle(for: bucket.timeBucket))
+                        .id(bucket.timeBucket)
                 }
             }
         }
         .padding(.leading, contentLeadingPadding)
-        .padding(.trailing, 16)
+        .padding(.trailing, trailingPadding)
     }
 
     private var yearSections: some View {
@@ -199,11 +216,12 @@ struct PhotoGridView: View {
                     JustifiedAssetGridView(assets: assets, service: model.service, onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
                 } header: {
                     sectionHeader(group.year)
+                        .id(group.year)
                 }
             }
         }
         .padding(.leading, contentLeadingPadding)
-        .padding(.trailing, 16)
+        .padding(.trailing, trailingPadding)
     }
 
     private var allPhotosSection: some View {
@@ -226,6 +244,30 @@ struct PhotoGridView: View {
             }
             .task { await model.loadAssets(for: bucket.timeBucket) }
         }
+    }
+
+    private var zoomControl: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "photo").font(.system(size: 9))
+            Slider(value: $zoom, in: GridZoom.range)
+                .frame(width: 110)
+                .accessibilityLabel("Thumbnail size")
+            Image(systemName: "photo").font(.system(size: 14))
+        }
+        .foregroundStyle(.secondary)
+        .help("Thumbnail size (⌘+ and ⌘−)")
+    }
+
+    /// The date strip needs month or year sections to jump between, and more than one of them.
+    private var showsScrubber: Bool { grouping != .all && model.buckets.count > 1 }
+    private var trailingPadding: CGFloat { showsScrubber ? 46 : 16 }
+
+    private var scrubberModel: ScrubberModel {
+        ScrubberModel(buckets: model.buckets.map { (key: $0.timeBucket, count: Int($0.count)) })
+    }
+
+    private func scrubberTitle(_ key: String) -> String {
+        grouping == .years ? String(key.prefix(4)) : monthTitle(for: key)
     }
 
     private func sectionHeader(_ title: String) -> some View {

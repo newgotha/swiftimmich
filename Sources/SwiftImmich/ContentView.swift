@@ -130,6 +130,18 @@ struct ContentView: View {
                     }
 
                 }
+            } else if serverURLString.isEmpty || apiKey.isEmpty {
+                WelcomeView(
+                    serverURL: $serverURLString,
+                    apiKey: $apiKey,
+                    errorMessage: connectionError,
+                    isBusy: isConnecting
+                ) { Task { await testAndConnect() } }
+                .toolbar {
+                    if columnVisibility == .detailOnly {
+                        ToolbarItem(placement: .navigation) { connectionButton }
+                    }
+                }
             } else {
                 VStack {
                     if let connectionError {
@@ -482,6 +494,22 @@ struct ContentView: View {
         }
 
         guard service == nil, !serverURLString.isEmpty, !apiKey.isEmpty else { return }
+        connect()
+    }
+
+    /// First-run connect: proves the address and key work before moving on.
+    private func testAndConnect() async {
+        connectionError = nil
+        isConnecting = true
+        defer { isConnecting = false }
+        do {
+            let candidate = try ImmichService(serverURLString: serverURLString, apiKey: apiKey)
+            _ = try await candidate.fetchMe()
+        } catch {
+            connectionError = FriendlyError.message(for: error)
+            return
+        }
+        serverURLString = ServerAddress.normalized(serverURLString)
         connect()
     }
 

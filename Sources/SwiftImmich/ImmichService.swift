@@ -800,12 +800,12 @@ struct ImmichService {
 
     /// Every person, following the server's pages — a library with lots of unnamed face
     /// clusters can easily have more than one page (500) of them.
-    func fetchPeople() async throws -> [Components.Schemas.PersonResponseDto] {
+    func fetchPeople(includeHidden: Bool = false) async throws -> [Components.Schemas.PersonResponseDto] {
         var people: [Components.Schemas.PersonResponseDto] = []
         var page = 1
         while true {
             try Task.checkCancellation()
-            let response = try await client.getAllPeople(query: .init(page: page, size: 1000, withHidden: false))
+            let response = try await client.getAllPeople(query: .init(page: page, size: 1000, withHidden: includeHidden))
             let result = try response.ok.body.json
             people += result.people
             guard result.hasNextPage == true else { return people }
@@ -824,6 +824,31 @@ struct ImmichService {
     /// person in every photo they appear in.
     func renamePerson(id: String, name: String) async throws -> Components.Schemas.PersonResponseDto {
         let response = try await client.updatePerson(.init(path: .init(id: id), body: .json(.init(name: name))))
+        switch response {
+        case .ok(let ok): return try ok.body.json
+        case .undocumented(let statusCode, let payload):
+            throw await Self.failure(statusCode, payload)
+        }
+    }
+
+    /// Changes only the fields given: favorite, hidden, birthday, or the photo whose face is
+    /// the person's cover.
+    func updatePerson(
+        id: String,
+        isFavorite: Bool? = nil,
+        isHidden: Bool? = nil,
+        birthDate: Date? = nil,
+        featureFaceAssetId: String? = nil
+    ) async throws -> Components.Schemas.PersonResponseDto {
+        let response = try await client.updatePerson(.init(
+            path: .init(id: id),
+            body: .json(.init(
+                birthDate: birthDate.map(PersonBirthday.string(from:)),
+                featureFaceAssetId: featureFaceAssetId,
+                isFavorite: isFavorite,
+                isHidden: isHidden
+            ))
+        ))
         switch response {
         case .ok(let ok): return try ok.body.json
         case .undocumented(let statusCode, let payload):
@@ -1011,4 +1036,19 @@ struct ImmichService {
         else { throw ImmichServiceError.uploadFailed }
         return response.statusCode == 201 ? .created(assetId: assetId) : .duplicate(assetId: assetId)
     }
+}
+
+
+/// Immich stores a birthday as a plain calendar date ("1985-03-27"), with no time zone.
+enum PersonBirthday {
+    private static let formatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    static func string(from date: Date) -> String { formatter.string(from: date) }
+    static func date(from text: String) -> Date? { formatter.date(from: String(text.prefix(10))) }
 }
