@@ -148,6 +148,9 @@ struct PhotoGridView: View {
                     .padding(.vertical, 40)
                 }
             }
+            .onChange(of: selection.focusedId) { _, id in
+                if let id { proxy.scrollTo(id) }
+            }
             .overlay {
                 if model.isLoadingBuckets {
                     ProgressView("Loading timeline…")
@@ -213,7 +216,7 @@ struct PhotoGridView: View {
             ForEach(yearGroups, id: \.year) { group in
                 Section {
                     let assets = group.buckets.flatMap { model.assetsByBucket[$0.timeBucket] ?? [] }
-                    JustifiedAssetGridView(assets: assets, service: model.service, onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
+                    JustifiedAssetGridView(assets: assets, service: model.service, order: yearIndex(of: group.year), onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
                 } header: {
                     sectionHeader(group.year)
                         .id(group.year)
@@ -233,7 +236,7 @@ struct PhotoGridView: View {
     @ViewBuilder
     private func bucketContent(for bucket: Components.Schemas.TimeBucketsResponseDto) -> some View {
         if let assets = model.assetsByBucket[bucket.timeBucket] {
-            JustifiedAssetGridView(assets: assets, service: model.service, onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
+            JustifiedAssetGridView(assets: assets, service: model.service, order: model.buckets.firstIndex(where: { $0.timeBucket == bucket.timeBucket }) ?? 0, onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
         } else {
             LazyVGrid(columns: placeholderColumns, spacing: 10) {
                 ForEach(0..<min(Int(bucket.count), 12), id: \.self) { _ in
@@ -248,11 +251,11 @@ struct PhotoGridView: View {
 
     private var zoomControl: some View {
         HStack(spacing: 6) {
-            Image(systemName: "photo").font(.system(size: 9))
+            Image(systemName: "photo").font(.system(size: 9)).accessibilityHidden(true)
             Slider(value: $zoom.value, in: GridZoom.range)
                 .frame(width: 110)
                 .accessibilityLabel("Thumbnail size")
-            Image(systemName: "photo").font(.system(size: 14))
+            Image(systemName: "photo").font(.system(size: 14)).accessibilityHidden(true)
         }
         .foregroundStyle(.secondary)
         .help("Thumbnail size (⌘+ and ⌘−)")
@@ -272,6 +275,10 @@ struct PhotoGridView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         SectionHeader(title: title)
+    }
+
+    private func yearIndex(of year: String) -> Int {
+        yearGroups.firstIndex(where: { $0.year == year }) ?? 0
     }
 
     private var yearGroups: [(year: String, buckets: [Components.Schemas.TimeBucketsResponseDto])] {

@@ -78,8 +78,8 @@ struct LivePhotoLayer: View {
             .background(.black.opacity(isPlaying ? 0.7 : 0.5), in: Capsule())
             .padding(12)
             .contentShape(Capsule())
-            .onHover { inside in withAnimation(.easeInOut(duration: 0.2)) { isPlaying = inside } }
-            .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { isPlaying.toggle() } }
+            .onHover { inside in withMotion(.easeInOut(duration: 0.2)) { isPlaying = inside } }
+            .onTapGesture { withMotion(.easeInOut(duration: 0.2)) { isPlaying.toggle() } }
             .help("Hover to play")
         }
         .frame(width: size.width, height: size.height)

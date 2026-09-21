@@ -330,7 +330,7 @@ struct FileDropUpload: ViewModifier {
                 }
             }
             .overlay(alignment: .bottom) { TransferBanner(center: center) }
-            .animation(.easeInOut(duration: 0.2), value: center.isVisible)
+            .animation(Motion.animation(.easeInOut(duration: 0.2)), value: center.isVisible)
             .onReceive(NotificationCenter.default.publisher(for: .requestUploadPanel)) { _ in
                 if let service { center.chooseAndUpload(service: service) }
             }

@@ -97,6 +97,6 @@ struct QuickLookPresenter: ViewModifier {
                     QuickLookOverlay(service: service, item: item) { selection.quickLook = nil }
                 }
             }
-            .animation(.easeInOut(duration: 0.15), value: selection.quickLook != nil)
+            .animation(Motion.animation(.easeInOut(duration: 0.15)), value: selection.quickLook != nil)
     }
 }

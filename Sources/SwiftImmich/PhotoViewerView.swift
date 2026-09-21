@@ -154,7 +154,7 @@ struct PhotoViewerView: View {
                     // Shrinks the image to make room for the bottom bar instead of
                     // letting the bar float on top and cover the lower crop handles.
                     .padding(.bottom, bottomInset)
-                    .animation(.easeInOut(duration: 0.25), value: bottomInset)
+                    .animation(Motion.animation(.easeInOut(duration: 0.25)), value: bottomInset)
                     .transition(.asymmetric(
                         insertion: .move(edge: slideForward ? .trailing : .leading),
                         removal: .move(edge: slideForward ? .leading : .trailing).combined(with: .opacity)
@@ -192,7 +192,7 @@ struct PhotoViewerView: View {
                         .transition(.move(edge: .bottom))
                 } else if showInfoPanel {
                     AssetInfoPanel(service: service, assetId: asset.id, canEdit: service.isMine(asset)) {
-                        withAnimation(.easeInOut(duration: 0.3)) { showInfoPanel = false }
+                        withMotion(.easeInOut(duration: 0.3)) { showInfoPanel = false }
                     }
                     .transition(.move(edge: .bottom))
                 } else if hasUnsavedChanges {
@@ -298,6 +298,7 @@ struct PhotoViewerView: View {
                     Toggle("Full screen", isOn: $slideshowFullScreen)
                 } label: {
                     Image(systemName: "play.rectangle")
+                        .accessibilityLabel("Slideshow")
                 }
                 .help("Slideshow (S)")
             }
@@ -306,6 +307,7 @@ struct PhotoViewerView: View {
                     showFaces.toggle()
                 } label: {
                     Image(systemName: showFaces ? "person.crop.rectangle.fill" : "person.crop.rectangle")
+                        .accessibilityLabel("Show or hide faces")
                 }
                 .help("Show or hide faces (P)")
                 .disabled(!asset.isImage)
@@ -318,14 +320,16 @@ struct PhotoViewerView: View {
                     transfers.download([asset], service: service)
                 } label: {
                     Image(systemName: "arrow.down.circle")
+                        .accessibilityLabel("Download original")
                 }
                 .help("Download Original…")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    if showInfoPanel { withAnimation(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
+                    if showInfoPanel { withMotion(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
                 } label: {
                     Image(systemName: showInfoPanel ? "info.circle.fill" : "info.circle")
+                        .accessibilityLabel("Info")
                 }
                 .disabled(isCropping)
             }
@@ -352,6 +356,7 @@ struct PhotoViewerView: View {
                     toggleFavorite(asset)
                 } label: {
                     Image(systemName: isFavorite ? "heart.fill" : "heart")
+                        .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                 }
                 .disabled(isTogglingFavorite)
             }
@@ -362,6 +367,7 @@ struct PhotoViewerView: View {
                         Button("Unstack All", role: .destructive) { unstack(stackId) }
                     } label: {
                         Image(systemName: "square.stack.3d.up")
+                            .accessibilityLabel("Stack options")
                     }
                     .disabled(isChangingState)
                 }
@@ -372,6 +378,7 @@ struct PhotoViewerView: View {
                         toggleArchive(asset)
                     } label: {
                         Image(systemName: filter == .archive ? "tray.and.arrow.up" : "archivebox")
+                            .accessibilityLabel(filter == .archive ? "Unarchive" : "Archive")
                     }
                     .help(filter == .archive ? "Unarchive" : "Archive")
                     .disabled(isChangingState)
@@ -382,6 +389,7 @@ struct PhotoViewerView: View {
                     rotate()
                 } label: {
                     Image(systemName: "rotate.right")
+                        .accessibilityLabel("Rotate")
                 }
                 .disabled(isApplyingEdit || isCropping || pendingCroppedImage != nil)
             }
@@ -390,6 +398,7 @@ struct PhotoViewerView: View {
                     mirror()
                 } label: {
                     Image(systemName: "flip.horizontal")
+                        .accessibilityLabel("Mirror")
                 }
                 .disabled(isApplyingEdit || isCropping || pendingCroppedImage != nil)
             }
@@ -398,14 +407,16 @@ struct PhotoViewerView: View {
                     toggleCropMode()
                 } label: {
                     Image(systemName: "crop")
+                        .accessibilityLabel("Crop")
                 }
                 .disabled(isApplyingEdit || pendingRotation != 0 || pendingMirror)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    withAnimation { showEditOverlay.toggle() }
+                    withMotion { showEditOverlay.toggle() }
                 } label: {
                     Image(systemName: "wand.and.stars")
+                        .accessibilityLabel("Edit and enhance")
                 }
                 .disabled(isCropping)
             }
@@ -425,6 +436,7 @@ struct PhotoViewerView: View {
                         removeFromAlbum(albumContext, asset: asset)
                     } label: {
                         Image(systemName: "rectangle.stack.badge.minus")
+                            .accessibilityLabel("Remove from album")
                     }
                 }
             }
@@ -433,6 +445,7 @@ struct PhotoViewerView: View {
                     showDeleteConfirmation = true
                 } label: {
                     Image(systemName: "trash")
+                        .accessibilityLabel("Move to trash")
                 }
                 .disabled(isDeleting)
             }
@@ -447,6 +460,7 @@ struct PhotoViewerView: View {
                         selection.pendingActivity = ActivityRequest(albumId: albumContext.id, albumName: albumContext.name, assetId: asset.id)
                     } label: {
                         Image(systemName: "bubble.left.and.bubble.right")
+                            .accessibilityLabel("Comments and likes")
                     }
                     .help("Comments and likes on this photo")
                 }
@@ -469,6 +483,7 @@ struct PhotoViewerView: View {
                     }
                 } label: {
                     Image(systemName: "rectangle.stack.badge.plus")
+                        .accessibilityLabel("Add to album")
                 }
             }
     }
@@ -537,7 +552,7 @@ struct PhotoViewerView: View {
                 showFaces.toggle()
                 return true
             case "i":
-                if showInfoPanel { withAnimation(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
+                if showInfoPanel { withMotion(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
                 return true
             case "r" where mine && !inTrash && !(isApplyingEdit || pendingCroppedImage != nil):
                 rotate()
@@ -547,7 +562,7 @@ struct PhotoViewerView: View {
         }
         if press.command && !press.option && !press.control {
             if press.character == "i" {
-                if showInfoPanel { withAnimation(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
+                if showInfoPanel { withMotion(.easeInOut(duration: 0.3)) { showInfoPanel = false } } else { showInfo() }
                 return true
             }
             if press.keyCode == 51, mine, !isDeleting, !isChangingState {
@@ -607,7 +622,7 @@ struct PhotoViewerView: View {
     /// Swipe up (or the info button): slide the metadata panel up from the bottom.
     private func showInfo() {
         guard !isCropping, !isDismissing else { return }
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withMotion(.easeInOut(duration: 0.3)) {
             showEditOverlay = false
             showInfoPanel = true
         }
@@ -618,9 +633,9 @@ struct PhotoViewerView: View {
     /// can't also throw you out of the photo.
     private func swipeDown(_ asset: AssetSummary) {
         if showInfoPanel {
-            withAnimation(.easeInOut(duration: 0.3)) { showInfoPanel = false }
+            withMotion(.easeInOut(duration: 0.3)) { showInfoPanel = false }
         } else if showEditOverlay {
-            withAnimation(.easeInOut(duration: 0.3)) { showEditOverlay = false }
+            withMotion(.easeInOut(duration: 0.3)) { showEditOverlay = false }
         } else {
             dismissViewer(asset)
         }
@@ -752,7 +767,7 @@ struct PhotoViewerView: View {
                 })
                 .onTapGesture(count: 2) {
                     guard !isCropping else { return }
-                    withAnimation { scale = scale > 1 ? 1 : 2.5 }
+                    withMotion { scale = scale > 1 ? 1 : 2.5 }
                 }
             } else {
                 ProgressView()
@@ -812,7 +827,7 @@ struct PhotoViewerView: View {
                     .font(.headline)
                 Spacer()
                 Button {
-                    withAnimation { showEditOverlay = false }
+                    withMotion { showEditOverlay = false }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
@@ -943,7 +958,7 @@ struct PhotoViewerView: View {
         resetPendingEditState()
         Task {
             await preload(target)
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withMotion(.easeInOut(duration: 0.3)) {
                 currentIndex = index
                 scale = 1
             }
@@ -981,19 +996,19 @@ struct PhotoViewerView: View {
             cropRect = CGRect(x: 0, y: 0, width: 1, height: 1)
             scale = 1
         }
-        withAnimation { isCropping.toggle() }
+        withMotion { isCropping.toggle() }
     }
 
     private func rotate() {
         // Immich's rotate angle is absolute (0/90/180/270), not a delta.
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withMotion(.easeInOut(duration: 0.3)) {
             pendingRotation = (pendingRotation + 90) % 360
         }
         hasUnsavedChanges = true
     }
 
     private func mirror() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withMotion(.easeInOut(duration: 0.3)) {
             pendingMirror.toggle()
         }
         hasUnsavedChanges = true
@@ -1107,7 +1122,7 @@ struct PhotoViewerView: View {
 
 
     private func discardPendingEdits() {
-        withAnimation {
+        withMotion {
             pendingRotation = 0
             pendingMirror = false
             pendingCroppedImage = nil

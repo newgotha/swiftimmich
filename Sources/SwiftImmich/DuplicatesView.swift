@@ -280,6 +280,7 @@ private struct DuplicateCard: View {
                     )
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .accessibilityLabel("Open photo")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(6)

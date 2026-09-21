@@ -46,7 +46,7 @@ final class ViewerTransition: ObservableObject {
             // The grid starts fading in when the ghost is about halfway out.
             try? await Task.sleep(for: .seconds(Self.ghostDuration / 2))
             guard generation == current else { return }
-            withAnimation(.easeOut(duration: Self.gridFadeDuration)) { gridOpacity = 1 }
+            withMotion(.easeOut(duration: Self.gridFadeDuration)) { gridOpacity = 1 }
 
             try? await Task.sleep(for: .seconds(Self.ghostDuration / 2 + 0.05))
             guard generation == current else { return }
@@ -92,7 +92,7 @@ private struct GhostImage: View {
             .onAppear {
                 // Ease in-out so "halfway out" is reached at half the time, which is
                 // when the grid's fade-in begins.
-                withAnimation(.easeInOut(duration: ViewerTransition.ghostDuration)) { progress = 1 }
+                withMotion(.easeInOut(duration: ViewerTransition.ghostDuration)) { progress = 1 }
             }
     }
 }

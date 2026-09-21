@@ -5,6 +5,8 @@ struct AssetThumbnailView: View {
     let request: URLRequest
     let size: CGSize
     var isSelected = false
+    /// Highlighted by the arrow keys.
+    var isFocused = false
     /// Names of the albums this photo is in; a small badge shows when there are any.
     var albumNames: [String] = []
     /// A photo from someone else's shared library: read-only, marked with a small person icon.
@@ -49,6 +51,11 @@ struct AssetThumbnailView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size.width, height: size.height)
                     .clipped()
+            }
+
+            if isFocused && !isSelected {
+                Rectangle()
+                    .strokeBorder(Color.accentColor, lineWidth: 3)
             }
 
             if isSelected {

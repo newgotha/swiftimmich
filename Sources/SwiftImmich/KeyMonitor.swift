@@ -21,6 +21,8 @@ struct KeyMonitor: NSViewRepresentable {
         let shift: Bool
         let option: Bool
         let control: Bool
+        /// A list (the sidebar) has keyboard focus, so arrow keys belong to it.
+        var inList = false
 
         var isPlain: Bool { !command && !option && !control }
     }
@@ -52,7 +54,8 @@ struct KeyMonitor: NSViewRepresentable {
                     command: flags.contains(.command),
                     shift: flags.contains(.shift),
                     option: flags.contains(.option),
-                    control: flags.contains(.control)
+                    control: flags.contains(.control),
+                    inList: self.window?.firstResponder is NSTableView || self.window?.firstResponder is NSOutlineView
                 )
                 return self.handler?(press) == true ? nil : event
             }
@@ -104,7 +107,17 @@ struct GridKeyCommands: ViewModifier {
 
     private var targets: [AssetSummary] {
         if selection.isSelecting && selection.count > 0 { return Array(selection.selected.values) }
-        return selection.hovered.map { [$0.asset] } ?? []
+        return selection.actionTarget.map { [$0.asset] } ?? []
+    }
+
+    private static func direction(for keyCode: UInt16) -> GridNavigator.Direction? {
+        switch keyCode {
+        case 123: return .left
+        case 124: return .right
+        case 125: return .down
+        case 126: return .up
+        default: return nil
+        }
     }
 
     private func handle(_ press: KeyMonitor.KeyPress) -> Bool {
@@ -121,21 +134,34 @@ struct GridKeyCommands: ViewModifier {
             }
             return true
         }
-        let filter = selection.hovered?.filter ?? selection.lastFilter
+        let filter = selection.actionTarget?.filter ?? selection.lastFilter
+
+        if !press.command && !press.option && !press.control, let direction = Self.direction(for: press.keyCode) {
+            // The sidebar keeps the arrows unless you're pointing at photos or already moving around them.
+            guard selection.focusedId != nil || selection.hovered != nil || !press.inList else { return false }
+            return selection.moveFocus(direction, extend: press.shift)
+        }
+        if press.command && !press.option && !press.control && !press.shift && press.character == "a" {
+            return selection.selectAllLoaded()
+        }
 
         if press.isPlain && !press.shift {
             switch press.keyCode {
             case 53:
-                guard selection.isSelecting else { return false }
-                selection.end()
+                if selection.isSelecting {
+                    selection.end()
+                    return true
+                }
+                guard selection.focusedId != nil else { return false }
+                selection.focusedId = nil
                 return true
             case 49:
-                // Space previews the photo under the pointer, Finder-style.
-                guard let hovered = selection.hovered, let index = hovered.neighbors.firstIndex(where: { $0.id == hovered.asset.id }) else { return false }
+                // Space previews the highlighted photo, or the one under the pointer, Finder-style.
+                guard let hovered = selection.actionTarget, let index = hovered.neighbors.firstIndex(where: { $0.id == hovered.asset.id }) else { return false }
                 selection.quickLook = QuickLookItem(assets: hovered.neighbors, index: index, activate: hovered.activate)
                 return true
             case 36:
-                guard let hovered = selection.hovered else { return false }
+                guard let hovered = selection.actionTarget else { return false }
                 hovered.open()
                 return true
             case 51, 117:

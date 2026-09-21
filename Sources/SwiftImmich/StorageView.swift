@@ -199,6 +199,7 @@ struct StorageView: View {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Open photo")
                     .help("Open")
                 }
                 .padding(.vertical, 8)

@@ -45,6 +45,7 @@ struct AssetInfoPanel: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Close info")
                 }
                 .buttonStyle(.plain)
             }
@@ -152,6 +153,8 @@ struct AssetInfoPanel: View {
                         } label: {
                             Image(systemName: star <= rating ? "star.fill" : "star")
                                 .foregroundStyle(star <= rating ? Color.yellow : Color.secondary)
+                                .accessibilityLabel("\(star) star\(star == 1 ? "" : "s")")
+                                .accessibilityAddTraits(star <= rating ? .isSelected : [])
                         }
                         .buttonStyle(.plain)
                     }
@@ -173,6 +176,7 @@ struct AssetInfoPanel: View {
                                 Task { await selection.untag(thisAsset, from: (id: tag.id, name: tag.value), removeFromGrid: false) }
                             } label: {
                                 Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                                    .accessibilityLabel("Remove tag \(tag.value)")
                             }
                             .buttonStyle(.plain)
                         }

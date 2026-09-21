@@ -22,6 +22,7 @@ struct FlatAssetGridView: View {
     /// Flat lists start as one run (search results are ordered by how well they match, which
     /// grouping by date would scramble), but can be grouped by month or year.
     @State private var grouping: TimelineGrouping = .all
+    @EnvironmentObject private var selection: GridSelection
 
     private struct DateGroup {
         let title: String
@@ -86,6 +87,7 @@ struct FlatAssetGridView: View {
                     .padding(.bottom, 8)
             }
 
+            ScrollViewReader { proxy in
             ScrollView {
                 if grouping == .all {
                     JustifiedAssetGridView(assets: assets, service: service, onDelete: onDelete)
@@ -95,7 +97,7 @@ struct FlatAssetGridView: View {
                     LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
                         ForEach(groups, id: \.title) { group in
                             Section {
-                                JustifiedAssetGridView(assets: group.assets, service: service, onDelete: onDelete)
+                                JustifiedAssetGridView(assets: group.assets, service: service, order: groups.firstIndex(where: { $0.title == group.title }) ?? 0, onDelete: onDelete)
                             } header: {
                                 groupHeader(group.title)
                             }
@@ -104,6 +106,9 @@ struct FlatAssetGridView: View {
                     .padding(.leading, contentLeadingPadding)
                     .padding(.trailing, 16)
                 }
+            }
+            .onChange(of: selection.focusedId) { _, id in
+                if let id { proxy.scrollTo(id) }
             }
             .overlay {
                 if assets.isEmpty {
@@ -114,6 +119,7 @@ struct FlatAssetGridView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
             }
         }
         .navigationTitle("")

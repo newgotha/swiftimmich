@@ -345,6 +345,7 @@ struct ContentView: View {
             showConnectionPopover.toggle()
         } label: {
             Image(systemName: "server.rack")
+                .accessibilityLabel("Server connection")
                 .overlay(alignment: .bottomTrailing) {
                     Circle()
                         .fill(connectionStatusColor)

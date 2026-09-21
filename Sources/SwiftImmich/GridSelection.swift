@@ -9,9 +9,10 @@ extension Notification.Name {
     static let assetsRemoved = Notification.Name("dev.local.swiftimmich.assetsRemoved")
     /// Posted (object: `FavoriteChange`) after assets are favorited or unfavorited.
     static let assetsFavoriteChanged = Notification.Name("dev.local.swiftimmich.assetsFavoriteChanged")
+    /// Posted (object: the person's id) when a person's cover photo changed.
+    static let peopleChanged = Notification.Name("dev.local.swiftimmich.peopleChanged")
     /// Posted when a grid's contents changed in a way it can't patch locally (stacking
     /// or unstacking), so the visible timeline should reload.
-    static let peopleChanged = Notification.Name("dev.local.swiftimmich.peopleChanged")
     static let gridNeedsReload = Notification.Name("dev.local.swiftimmich.gridNeedsReload")
     /// Posted after the trash is emptied, so the Recently Deleted grid can clear itself.
     static let trashEmptied = Notification.Name("dev.local.swiftimmich.trashEmptied")
@@ -99,6 +100,13 @@ final class GridSelection: ObservableObject {
         let open: () -> Void
     }
     var hovered: Hovered?
+
+    /// The photo the arrow keys have highlighted. Only changes on key presses (and when the
+    /// pointer moves away), so publishing it doesn't redraw grids on every mouse movement.
+    @Published var focusedId: String?
+    var focusSetAt = Date.distantPast
+    /// Every grid on screen, so the arrow keys can move between rows and sections.
+    var layouts: [UUID: GridLayoutEntry] = [:]
     /// The page most recently pointed at, so shortcuts know whether they're in the trash.
     var lastFilter: TimelineFilter = .none
 
@@ -118,6 +126,12 @@ final class GridSelection: ObservableObject {
         if let asset { selected[asset.id] = asset }
     }
 
+    /// Adds photos to the selection (entering selection mode if needed).
+    func select(_ assets: [AssetSummary]) {
+        isSelecting = true
+        for asset in assets { selected[asset.id] = asset }
+    }
+
     func deselect(_ ids: [String]) {
         for id in ids { selected[id] = nil }
     }
@@ -129,6 +143,7 @@ final class GridSelection: ObservableObject {
         // any "pointer left" ever being reported; make sure a shortcut can't act on it.
         hovered = nil
         quickLook = nil
+        focusedId = nil
     }
 
     /// What a right-click acts on: the whole selection if the clicked item is part of

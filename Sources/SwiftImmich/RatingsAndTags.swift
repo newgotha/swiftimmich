@@ -215,7 +215,7 @@ struct TagDialogsAndToast: ViewModifier {
                         .allowsHitTesting(false)
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: selection.toast)
+            .animation(Motion.animation(.easeInOut(duration: 0.2)), value: selection.toast)
     }
 }
 

@@ -30,6 +30,7 @@ struct AlbumsView: View {
                     showNewAlbumPrompt = true
                 } label: {
                     Image(systemName: "plus")
+                        .accessibilityLabel("New album")
                 }
                 .padding(.trailing, 16)
             }

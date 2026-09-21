@@ -53,6 +53,7 @@ struct TimelineScrubber: View {
 
     @State private var dragFraction: Double?
     @State private var lastKey: String?
+    @State private var voiceOverIndex = 0
 
     private let stripWidth: CGFloat = 38
 
@@ -101,7 +102,17 @@ struct TimelineScrubber: View {
         .frame(width: stripWidth)
         .accessibilityElement()
         .accessibilityLabel("Timeline")
-        .accessibilityHint("Drag to jump to a month")
+        .accessibilityHint("Drag to jump to a month, or swipe up and down to step through months")
+        .accessibilityAdjustableAction { direction in
+            let last = model.slices.count - 1
+            guard last >= 0 else { return }
+            switch direction {
+            case .increment: voiceOverIndex = min(voiceOverIndex + 1, last)
+            case .decrement: voiceOverIndex = max(voiceOverIndex - 1, 0)
+            @unknown default: return
+            }
+            onJump(model.slices[voiceOverIndex].key)
+        }
     }
 
     /// Year labels that would overlap are skipped so the strip stays legible.
