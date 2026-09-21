@@ -88,9 +88,14 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 480, height: Self.windowHeight)
         .onAppear(perform: refreshUsage)
+    }
+
+    /// Tall enough to be comfortable, but never taller than the screen has room for (the form scrolls).
+    static var windowHeight: CGFloat {
+        let available = NSScreen.main?.visibleFrame.height ?? 800
+        return min(600, max(320, available - 140))
     }
 
     private func refreshUsage() {

@@ -321,3 +321,13 @@ final class AppearanceTests: XCTestCase {
         XCTAssertGreaterThan(try rgb(Palette.pillTextNS, .darkAqua), try rgb(Palette.pillTextNS, .aqua), "text is light on dark")
     }
 }
+
+@MainActor
+final class SettingsWindowTests: XCTestCase {
+    func testTheSettingsWindowFitsOnAScreenAndScrollsInsteadOfGrowing() {
+        let height = SettingsView.windowHeight
+        XCTAssertGreaterThanOrEqual(height, 320)
+        XCTAssertLessThanOrEqual(height, 600)
+        if let screen = NSScreen.main { XCTAssertLessThan(height, screen.visibleFrame.height) }
+    }
+}
