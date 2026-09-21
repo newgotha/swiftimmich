@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.1
+
+- **Hover effects.** Buttons, sidebar rows and album, people and place tiles now react when the pointer is over them: buttons darken or brighten, small icon buttons get a soft highlight, sidebar rows highlight, and tiles lift slightly.
+- **Clearer selection.** A selected photo or video now shrinks a little inside its cell over a light blue margin, with a blue outline and a check mark, so it's easy to tell apart from the rest.
+
 ## 2.6.0
 
 - **Non-destructive edits.** Looks, tone and colour sliders, sharpen, vignette, warmth, straighten and crop are now saved with **Save Edit (Keep Original)**: your original is never touched, and the edited copy sits on top of it in a stack, so the Immich web and phone apps show the edited version too.
