@@ -12,6 +12,7 @@ struct AlbumsView: View {
     @State private var showNewAlbumPrompt = false
     @State private var newAlbumName = ""
     @EnvironmentObject private var gridSelection: GridSelection
+    @EnvironmentObject private var transferCenter: TransferCenter
     @State private var dropTargetId: String?
 
     private let columns = [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 16)]
@@ -40,7 +41,7 @@ struct AlbumsView: View {
 
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 24) {
-                    ForEach(albums, id: \.id) { album in
+                    ForEach(AlbumOrder.apply(AlbumOrder.saved, to: albums), id: \.id) { album in
                         NavigationLink {
                             PhotoGridView(service: service, filter: .album(id: album.id, name: album.albumName))
                         } label: {
@@ -77,6 +78,8 @@ struct AlbumsView: View {
                             Button("Share Album…") { gridSelection.pendingShareAlbum = album }
                             Button("Create Share Link…") { gridSelection.pendingShareLink = ShareLinkRequest(title: album.albumName, assetIds: nil, albumId: album.id) }
                             Button("Rename…") { gridSelection.pendingRenameAlbum = album }
+                        Button("Edit Description…") { gridSelection.pendingDescribeAlbum = album }
+                        Button("Download as Zip…") { if let service = gridSelection.service { transferCenter.downloadAlbum(album, service: service) } }
                             Divider()
                             Button("Delete Album…", role: .destructive) { gridSelection.pendingDeleteAlbum = album }
                         }

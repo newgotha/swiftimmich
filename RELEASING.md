@@ -37,6 +37,12 @@ If the app ever does freeze for a user, it saves a stack sample to `~/Library/Lo
 
    or create the release on github.com and upload the files from `dist/`.
 
+4. Point the Homebrew cask at the new release:
+
+   ```bash
+   Scripts/update_cask.sh 1.0.1
+   ```
+
 Installed copies then offer **Install and Restart**, which downloads the release's `.zip`, checks it against `SHA256SUMS.txt`, and swaps it in. So every release must include the `.zip` **and** `SHA256SUMS.txt` (the packaging script produces both). `Scripts/install.sh` installs the latest release for first-time users.
 
 The tag must look like `v1.2.3`, and the release must **not** be a draft or a pre-release, or the in-app update check ignores it.

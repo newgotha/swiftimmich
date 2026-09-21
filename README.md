@@ -29,6 +29,14 @@ curl -fsSL https://raw.githubusercontent.com/newgotha/swiftimmich/main/Scripts/i
 
 This downloads the latest release, checks its checksum, installs it in Applications and opens it. macOS only blocks apps that were downloaded by a *browser*, so an app fetched this way opens normally.
 
+**Or with Homebrew:**
+
+```bash
+brew install --cask newgotha/swiftimmich/swiftimmich
+```
+
+The app updates itself, so you don't need `brew upgrade`.
+
 **Or download it yourself:**
 
 1. Download the latest `SwiftImmich-x.y.z.dmg` from the [Releases page](https://github.com/newgotha/swiftimmich/releases), open it and drag **SwiftImmich** into **Applications**.

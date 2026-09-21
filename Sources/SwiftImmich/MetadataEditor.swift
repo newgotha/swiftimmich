@@ -39,6 +39,10 @@ struct MetadataEditor: View {
     @State private var placeQuery = ""
     @State private var places: [Components.Schemas.PlacesResponseDto] = []
     @State private var chosenPlace: Components.Schemas.PlacesResponseDto?
+    /// Where the pin is: from a searched place, a click on the map, or a drag.
+    @State private var pin: PinLocation?
+    /// Where the photo is now, so the map opens there.
+    @State private var existingPin: PinLocation?
     @State private var isSearching = false
     @State private var currentLocation: String?
 
@@ -47,7 +51,7 @@ struct MetadataEditor: View {
 
     private var isSingle: Bool { assets.count == 1 }
     private var hasChanges: Bool {
-        (changeDescription) || (changeDate && (dateMode == .set || shiftMinutesTotal != 0)) || (changeLocation && chosenPlace != nil)
+        (changeDescription) || (changeDate && (dateMode == .set || shiftMinutesTotal != 0)) || (changeLocation && pin != nil)
     }
     private var shiftMinutesTotal: Int {
         let total = (shiftDays * 24 + shiftHours) * 60 + shiftMinutes
@@ -178,17 +182,32 @@ struct MetadataEditor: View {
                     .disabled(placeQuery.trimmingCharacters(in: .whitespaces).isEmpty || isSearching)
                 if isSearching { ProgressView().controlSize(.small) }
             }
-            if let chosenPlace {
-                Label("\(Self.title(for: chosenPlace))", systemImage: "mappin.circle.fill")
+            if let pin {
+                Label(pinLabel(for: pin), systemImage: "mappin.circle.fill")
                     .font(.callout)
                     .foregroundStyle(Color.accentColor)
             }
+            LocationPickerMap(pin: Binding(
+                get: { pin ?? existingPin },
+                set: { newPin in
+                    pin = newPin
+                    if let chosenPlace, newPin != PinLocation(latitude: chosenPlace.latitude, longitude: chosenPlace.longitude) { self.chosenPlace = nil }
+                    changeLocation = true
+                }
+            ))
+            .frame(height: 190)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.secondary.opacity(0.3)))
+            Text("Click the map to place the pin, or drag it to where the photo was taken.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if !places.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(places.indices, id: \.self) { index in
                         let place = places[index]
                         Button {
                             chosenPlace = place
+                            pin = PinLocation(latitude: place.latitude, longitude: place.longitude)
                             changeLocation = true
                             places = []
                         } label: {
@@ -204,6 +223,11 @@ struct MetadataEditor: View {
                 }
             }
         }
+    }
+
+    private func pinLabel(for pin: PinLocation) -> String {
+        if let chosenPlace { return Self.title(for: chosenPlace) }
+        return "Pin at \(pin.text)"
     }
 
     private static func title(for place: Components.Schemas.PlacesResponseDto) -> String {
@@ -234,6 +258,9 @@ struct MetadataEditor: View {
             descriptionText = exif?.description ?? ""
             let place = [exif?.city, exif?.country].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
             currentLocation = place.isEmpty ? (exif?.latitude == nil ? "no location" : "coordinates only") : place
+            if let latitude = exif?.latitude, let longitude = exif?.longitude {
+                existingPin = PinLocation(latitude: latitude, longitude: longitude)
+            }
         }
     }
 
@@ -288,8 +315,8 @@ struct MetadataEditor: View {
                 dateTimeOriginal: dateString,
                 dateTimeRelative: relativeMinutes,
                 timeZone: dateString != nil && TimeZone(identifier: zone.identifier) != nil ? zone.identifier : nil,
-                latitude: changeLocation ? chosenPlace?.latitude : nil,
-                longitude: changeLocation ? chosenPlace?.longitude : nil
+                latitude: changeLocation ? pin?.latitude : nil,
+                longitude: changeLocation ? pin?.longitude : nil
             )
             NotificationCenter.default.post(name: .assetMetadataChanged, object: ids)
             if changeDate { NotificationCenter.default.post(name: .gridNeedsReload, object: nil) }

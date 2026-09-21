@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage(DiskImageCache.limitKey) private var cacheLimitMB = 1024
     @AppStorage(AutoImport.enabledKey) private var autoImport = false
     @AppStorage("showMenuBarItem") private var showMenuBarItem = true
+    @AppStorage(Notifier.importsKey) private var notifyImports = true
+    @AppStorage(Notifier.commentsKey) private var notifyComments = true
     @AppStorage(AppearanceMode.key) private var appearance = AppearanceMode.system.rawValue
     @AppStorage(UpdateChecker.autoCheckKey) private var autoCheckUpdates = true
     @State private var usedBytes = 0
@@ -61,6 +63,14 @@ struct SettingsView: View {
                     Button("Check Now") { Task { await UpdateChecker.shared.checkNow() } }
                 }
                 Text("New versions are published on GitHub. Updating means downloading the new version and replacing the app in Applications; your settings and server connection are kept.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Notifications") {
+                Toggle("When an import from Photos finishes or stops", isOn: $notifyImports)
+                Toggle("When someone comments in a shared album", isOn: $notifyComments)
+                Text("Shown only while SwiftImmich isn't the app you're using. Comments are checked every few minutes while the app is open.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

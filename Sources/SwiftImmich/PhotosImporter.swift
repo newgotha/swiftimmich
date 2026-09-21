@@ -222,7 +222,11 @@ final class PhotosImporter: ObservableObject {
         ledger.save()
         currentName = nil
         currentDetail = nil
-        phase = Task.isCancelled || stopReason != nil ? .stopped : .finished
+        let cancelledByUser = Task.isCancelled
+        phase = cancelledByUser || stopReason != nil ? .stopped : .finished
+        if let notice = ImportNotice.make(uploaded: uploaded, failed: failures.count, stopReason: stopReason, wasCancelledByUser: cancelledByUser) {
+            Notifier.post(title: notice.title, body: notice.body, setting: Notifier.importsKey, id: "photos-import")
+        }
         await refreshCounts()
     }
 

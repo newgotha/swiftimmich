@@ -68,6 +68,15 @@ struct AssetInfoPanel: View {
                             }
                         }
                     }
+                    if info.exifInfo?.latitude != nil, info.exifInfo?.longitude != nil {
+                        Button {
+                            if let asset = thisAsset.first { Task { await selection.showOnMap(asset) } }
+                        } label: {
+                            Label("Show on Map", systemImage: "map")
+                        }
+                        .buttonStyle(ToolbarPillStyle())
+                        .padding(.top, 10)
+                    }
                     if canEdit {
                         ratingAndTags(info)
                             .padding(.top, 14)

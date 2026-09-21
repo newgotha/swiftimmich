@@ -219,6 +219,17 @@ final class TransferCenter: ObservableObject {
 
     // MARK: - Bookkeeping
 
+    // For AlbumTools.swift, which lives in its own file and so can't reach the private members.
+    func beginAlbumDownload(title: String) { begin(title: title) }
+    func setAlbumTask(_ task: Task<Void, Never>) { self.task = task }
+    func setAlbumProgress(total: Int? = nil, completed: Int? = nil) {
+        if let total { self.total = total }
+        if let completed { self.completed = completed }
+    }
+    func setAlbumCurrent(_ name: String) { currentName = name }
+    func finishAlbumDownload(_ text: String?) { finish(text) }
+    func addAlbumFailure(_ error: Error) { failures.append(Self.describe(error)) }
+
     private func begin(title: String) {
         dismissTask?.cancel()
         self.title = title

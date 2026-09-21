@@ -67,15 +67,32 @@ struct PhotoGridView: View {
             }
         } else if case let .album(id, name) = model.filter {
             let album = selection.albums.first { $0.id == id }
-            HStack(spacing: 10) {
-                Text(album?.albumName ?? name)
-                    .font(.title2.weight(.bold))
-                    .lineLimit(1)
-                if let album, album.shared {
-                    if album.isActivityEnabled {
-                        AlbumActivityButton(service: service, album: album)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 10) {
+                    Text(album?.albumName ?? name)
+                        .font(.title2.weight(.bold))
+                        .lineLimit(1)
+                    if let album, album.shared {
+                        if album.isActivityEnabled {
+                            AlbumActivityButton(service: service, album: album)
+                        }
+                        SharedAlbumBadge(album: album, currentUserId: service.sharing.currentUserId, size: .title3)
                     }
-                    SharedAlbumBadge(album: album, currentUserId: service.sharing.currentUserId, size: .title3)
+                }
+                if let album {
+                    if album.description.isEmpty {
+                        Button("Add description") { selection.pendingDescribeAlbum = album }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Text(album.description)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .help("Double-click to edit")
+                            .onTapGesture(count: 2) { selection.pendingDescribeAlbum = album }
+                    }
                 }
             }
         } else if case .trash = model.filter {

@@ -221,5 +221,7 @@ struct WindowExtras: ViewModifier {
             .modifier(TagDialogsAndToast(selection: selection))
             .modifier(FaceNamingPresenter(service: service, selection: selection, directory: directory))
             .modifier(ActivityPresenter(service: service, selection: selection))
+            .modifier(AlbumDescriptionPrompt(selection: selection))
+            .modifier(ActivityWatcher(service: service, selection: selection))
     }
 }

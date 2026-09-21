@@ -64,6 +64,9 @@ struct SidebarView: View {
     let albums: [Components.Schemas.AlbumResponseDto]
     @ObservedObject var importer: PhotosImporter
     @ObservedObject var gridSelection: GridSelection
+    @EnvironmentObject private var transferCenter: TransferCenter
+    /// Your own order for the albums, set by dragging them (kept on this Mac).
+    @State private var albumOrder = AlbumOrder.saved
     @ObservedObject var searchModel: SearchModel
     let currentUserId: String?
 
@@ -107,7 +110,14 @@ struct SidebarView: View {
                 .ignoresSafeArea(edges: .top)
         }
         .contextMenu {
-            Button("Reset Sidebar Order") { savedOrder = "" }
+            Button("Reset Sidebar Order") {
+                savedOrder = ""
+                albumOrder = []
+                AlbumOrder.reset()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showOnMap)) { _ in
+            selection = .section(.map)
         }
         .onReceive(NotificationCenter.default.publisher(for: .showImportPage)) { _ in
             toolsExpanded = true
@@ -225,9 +235,13 @@ struct SidebarView: View {
         }
     }
 
+    private var orderedAlbums: [Components.Schemas.AlbumResponseDto] {
+        AlbumOrder.apply(albumOrder, to: albums)
+    }
+
     private var albumsGroup: some View {
         DisclosureGroup(isExpanded: $albumsExpanded) {
-            ForEach(albums, id: \.id) { album in
+            ForEach(orderedAlbums, id: \.id) { album in
                 HStack(spacing: 4) {
                     Label(album.albumName, systemImage: "square.stack")
                         .lineLimit(1)
@@ -262,9 +276,15 @@ struct SidebarView: View {
                             gridSelection.pendingShareLink = ShareLinkRequest(title: album.albumName, assetIds: nil, albumId: album.id)
                         }
                         Button("Rename…") { gridSelection.pendingRenameAlbum = album }
+                        Button("Edit Description…") { gridSelection.pendingDescribeAlbum = album }
+                        Button("Download as Zip…") { if let service = gridSelection.service { transferCenter.downloadAlbum(album, service: service) } }
                         Divider()
                         Button("Delete Album…", role: .destructive) { gridSelection.pendingDeleteAlbum = album }
                     }
+            }
+            .onMove { source, destination in
+                albumOrder = AlbumOrder.moved(orderedAlbums.map(\.id), from: source, to: destination)
+                AlbumOrder.save(albumOrder)
             }
         } label: {
             Label(SidebarSection.albums.title, systemImage: SidebarSection.albums.icon)

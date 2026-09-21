@@ -1,3 +1,4 @@
+import CoreLocation
 import ImmichAPI
 import SwiftUI
 
@@ -62,6 +63,8 @@ final class GridSelection: ObservableObject {
     @Published var pendingShareAlbum: Components.Schemas.AlbumResponseDto?
     /// Set to ask ContentView for a new name for this album.
     @Published var pendingRenameAlbum: Components.Schemas.AlbumResponseDto?
+    /// Set to ask ContentView for a new description for this album.
+    @Published var pendingDescribeAlbum: Components.Schemas.AlbumResponseDto?
     /// Set to ask ContentView to confirm deleting this album (its photos are kept).
     @Published var pendingDeleteAlbum: Components.Schemas.AlbumResponseDto?
     /// A result or error for ContentView to show.
@@ -235,6 +238,33 @@ final class GridSelection: ObservableObject {
             onAlbumUpdated?(updated)
         } catch {
             message = "Couldn't rename the album: \(Self.describe(error))"
+        }
+    }
+
+    func describe(_ album: Components.Schemas.AlbumResponseDto, as text: String) async {
+        guard let service else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != album.description.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+        do {
+            onAlbumUpdated?(try await service.updateAlbum(id: album.id, description: trimmed))
+        } catch {
+            message = "Couldn't change the description: \(Self.describe(error))"
+        }
+    }
+
+    /// Opens the Map page on this photo's location.
+    func showOnMap(_ asset: AssetSummary) async {
+        guard let service else { return }
+        do {
+            let info = try await service.fetchAssetInfo(assetId: asset.id)
+            guard let latitude = info.exifInfo?.latitude, let longitude = info.exifInfo?.longitude else {
+                showToast("This photo has no location.")
+                return
+            }
+            MapFocus.pending = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            NotificationCenter.default.post(name: .showOnMap, object: nil)
+        } catch {
+            message = "Couldn't look up the location: \(Self.describe(error))"
         }
     }
 
@@ -515,6 +545,14 @@ struct GridContextMenu: View {
                     Label("Use as This Person's Cover", systemImage: "person.crop.circle")
                 }
                 Divider()
+            }
+
+            if targets.count == 1 {
+                Button {
+                    Task { await selection.showOnMap(asset) }
+                } label: {
+                    Label("Show on Map", systemImage: "map")
+                }
             }
 
             let allFavorite = targets.allSatisfy(\.isFavorite)

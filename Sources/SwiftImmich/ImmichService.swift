@@ -748,10 +748,10 @@ struct ImmichService {
     }
 
     /// Renames an album and/or changes its cover photo; returns the album as it now is.
-    func updateAlbum(id: String, name: String? = nil, thumbnailAssetId: String? = nil) async throws -> Components.Schemas.AlbumResponseDto {
+    func updateAlbum(id: String, name: String? = nil, thumbnailAssetId: String? = nil, description: String? = nil) async throws -> Components.Schemas.AlbumResponseDto {
         let response = try await client.updateAlbumInfo(.init(
             path: .init(id: id),
-            body: .json(.init(albumName: name, albumThumbnailAssetId: thumbnailAssetId))
+            body: .json(.init(albumName: name, albumThumbnailAssetId: thumbnailAssetId, description: description))
         ))
         switch response {
         case .ok(let ok):

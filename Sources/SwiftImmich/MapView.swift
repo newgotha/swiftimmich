@@ -105,11 +105,23 @@ final class PhotoPinView: MKAnnotationView {
 
 /// MapKit's own map (not SwiftUI's `Map`), because it clusters tens of thousands of
 /// pins on its own and stays smooth doing it.
+extension Notification.Name {
+    /// Posted when a photo's "Show on Map" is chosen; `MapFocus.pending` says where.
+    static let showOnMap = Notification.Name("dev.local.swiftimmich.showOnMap")
+}
+
+/// Where the Map page should open, when it's opened for one particular photo.
+enum MapFocus {
+    nonisolated(unsafe) static var pending: CLLocationCoordinate2D?
+}
+
 struct PhotoMapView: NSViewRepresentable {
     let service: ImmichService
     let markers: [ImmichService.MapMarker]
     let markersVersion: Int
     let mapType: MKMapType
+    /// Opens the map centred here (close in) instead of framing all the photos.
+    var initialFocus: CLLocationCoordinate2D? = nil
     var onOpenPhoto: (String) -> Void
     var onOpenArea: (Double, Double, Double, Double) -> Void
     var onVisibleChange: (Double, Double, Double, Double, Int) -> Void
@@ -153,7 +165,10 @@ struct PhotoMapView: NSViewRepresentable {
 
             // Frame where the photos are, on the first load only (refreshing the
             // markers shouldn't yank the view away from where you're looking).
-            if isFirstLoad {
+            if isFirstLoad, let focus = parent.initialFocus {
+                isFirstLoad = false
+                map.setRegion(MKCoordinateRegion(center: focus, span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)), animated: false)
+            } else if isFirstLoad {
                 isFirstLoad = false
                 var rect = MKMapRect.null
                 for marker in markers {
@@ -232,6 +247,7 @@ struct MapPage: View {
         let assets: [AssetSummary]
     }
 
+    @State private var focus: CLLocationCoordinate2D? = MapFocus.pending
     @State private var markers: [ImmichService.MapMarker] = []
     @State private var version = 0
     @State private var isLoading = true
@@ -250,6 +266,7 @@ struct MapPage: View {
                 markers: markers,
                 markersVersion: version,
                 mapType: satellite ? .hybrid : .standard,
+                initialFocus: focus,
                 onOpenPhoto: { id in openPhoto(id) },
                 onOpenArea: { w, s, e, n in area = AreaRequest(west: w, south: s, east: e, north: n) },
                 onVisibleChange: { w, s, e, n, count in
