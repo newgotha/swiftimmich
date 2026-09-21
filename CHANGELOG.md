@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+- **Dark mode.** The app now follows your Mac's light or dark setting. Settings (⌘,) has an **Appearance** switch — Match System, Light or Dark.
+- **Keyboard navigation.** Arrow keys move a highlight around the photos in any grid; Space previews and Return opens the highlighted photo; Shift+arrows select as you go and ⌘A selects everything loaded.
+- **Accessibility.** Thumbnails read as "Photo, 12 September 2026, favorite" in VoiceOver, the viewer's icon-only buttons and other controls have spoken names, the timeline scrubber can be stepped month by month, and animations stand down when "Reduce motion" is on.
+- The Settings window now fits on screen and scrolls instead of growing past the Dock.
+
 ## 2.0.0
 
 - **Timeline scrubber.** A date strip on the right edge of the Months and Years views: click or drag to jump to any month in a large library.
