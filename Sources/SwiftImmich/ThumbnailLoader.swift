@@ -22,7 +22,8 @@ extension Notification.Name {
 /// it — but an expired copy is still used if the server can't be reached. The total is
 /// capped (Settings), evicting the least recently used first.
 enum DiskImageCache {
-    static let directory: URL = {
+    /// Only reassigned by tests, so they don't write into the real cache.
+    nonisolated(unsafe) static var directory: URL = {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         let url = base.appendingPathComponent("SwiftImmich/Images", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -97,6 +98,33 @@ enum DiskImageCache {
     }
 }
 
+/// Lets a few downloads run at a time, and serves the most recent request first — those are the
+/// photos on screen now, while older ones were probably scrolled past. Scrolling fast through a
+/// big library otherwise starts hundreds of downloads at once, most of them for photos never seen.
+actor FetchGate {
+    private let limit: Int
+    private var running = 0
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    init(limit: Int) { self.limit = limit }
+
+    func acquire() async {
+        if running < limit {
+            running += 1
+            return
+        }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    func release() {
+        if let next = waiting.popLast() {
+            next.resume()   // the slot passes straight to the newest waiter
+        } else {
+            running -= 1
+        }
+    }
+}
+
 /// Loads asset thumbnails over authenticated requests (SwiftUI's AsyncImage can't attach
 /// the x-api-key header Immich requires) and caches them in memory and on disk.
 actor ThumbnailLoader {
@@ -104,6 +132,11 @@ actor ThumbnailLoader {
 
     private let cache = NSCache<NSString, NSImage>()
     private var inFlight: [String: Task<NSImage?, Never>] = [:]
+    /// Who is still waiting on each in-flight download. When they've all scrolled away before
+    /// its turn comes, the download is skipped. Tracked per caller (not as a count) so a late
+    /// cancellation can never make a later request look abandoned.
+    private var waiters: [String: Set<UUID>] = [:]
+    private let gate = FetchGate(limit: 8)
     private var writesSincePrune = 0
     /// Keys of images fetched with a Locked Folder session; never written to disk, and forgotten on lock.
     private var sensitiveKeys: Set<String> = []
@@ -111,6 +144,8 @@ actor ThumbnailLoader {
     init() {
         // A big library would otherwise keep every thumbnail ever scrolled past in memory.
         cache.countLimit = 4000
+        // Decoded thumbnails are far bigger than their files, so also cap by pixels held.
+        cache.totalCostLimit = 300 * 1_048_576
         Task.detached(priority: .utility) { DiskImageCache.prune() }
     }
 
@@ -119,38 +154,66 @@ actor ThumbnailLoader {
         if let cached = cache.object(forKey: key) {
             return cached
         }
+        let waiter = UUID()
+        waiters[assetId, default: []].insert(waiter)
+        let task: Task<NSImage?, Never>
         if let existing = inFlight[assetId] {
-            return await existing.value
-        }
-
-        let sensitive = request.value(forHTTPHeaderField: "Authorization") != nil
-        let task = Task<NSImage?, Never> {
-            let saved = sensitive ? nil : await Task.detached(priority: .userInitiated) { DiskImageCache.read(assetId) }.value
-            if let saved, saved.isFresh, let image = NSImage(data: saved.data) {
-                return image
-            }
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                if (response as? HTTPURLResponse)?.statusCode == 200, let image = NSImage(data: data) {
-                    if !sensitive {
-                        DiskImageCache.write(assetId, data: data)
-                        noteWrite()
-                    }
+            task = existing
+        } else {
+            let sensitive = request.value(forHTTPHeaderField: "Authorization") != nil
+            task = Task<NSImage?, Never> {
+                let saved = sensitive ? nil : await Task.detached(priority: .userInitiated) { DiskImageCache.read(assetId) }.value
+                if let saved, saved.isFresh, let image = NSImage(data: saved.data) {
                     return image
                 }
-            } catch {}
-            // The server couldn't be reached: an out-of-date copy beats a blank tile.
-            if let saved, let image = NSImage(data: saved.data) { return image }
-            return nil
+                await gate.acquire()
+                defer { Task { await gate.release() } }
+                // Everyone who asked has scrolled away while this waited its turn.
+                if await self.nobodyWaiting(for: assetId) {
+                    if let saved, let image = NSImage(data: saved.data) { return image }
+                    return nil
+                }
+                do {
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    if (response as? HTTPURLResponse)?.statusCode == 200, let image = NSImage(data: data) {
+                        if !sensitive {
+                            DiskImageCache.write(assetId, data: data)
+                            await self.noteWrite()
+                        }
+                        return image
+                    }
+                } catch {}
+                // The server couldn't be reached: an out-of-date copy beats a blank tile.
+                if let saved, let image = NSImage(data: saved.data) { return image }
+                return nil
+            }
+            inFlight[assetId] = task
         }
-        inFlight[assetId] = task
-        let image = await task.value
+
+        let image = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            Task { await self.stopWaiting(waiter, for: assetId) }
+        }
         inFlight[assetId] = nil
+        stopWaiting(waiter, for: assetId)
         if let image {
-            cache.setObject(image, forKey: key)
-            if sensitive { sensitiveKeys.insert(assetId) }
+            cache.setObject(image, forKey: key, cost: Self.cost(of: image))
+            if request.value(forHTTPHeaderField: "Authorization") != nil { sensitiveKeys.insert(assetId) }
         }
         return image
+    }
+
+    private func nobodyWaiting(for assetId: String) -> Bool { waiters[assetId]?.isEmpty ?? true }
+    private func stopWaiting(_ waiter: UUID, for assetId: String) {
+        waiters[assetId]?.remove(waiter)
+        if waiters[assetId]?.isEmpty == true { waiters[assetId] = nil }
+    }
+
+    /// Roughly the bytes the decoded image occupies.
+    static func cost(of image: NSImage) -> Int {
+        guard let rep = image.representations.first else { return 1 }
+        return max(rep.pixelsWide * rep.pixelsHigh * 4, 1)
     }
 
     /// Forgets everything fetched while the Locked Folder was open.

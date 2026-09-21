@@ -78,34 +78,40 @@ final class PhotoLibraryModel: ObservableObject {
 
     func loadAssets(for timeBucket: String) async {
         guard assetsByBucket[timeBucket] == nil else { return }
-        do {
-            let assets = try await service.fetchAssets(inBucket: timeBucket, filter: filter)
-            assetsByBucket[timeBucket] = assets
-            errorMessage = nil
-            if !filter.isLocked { TimelineCache.save(assets, name: "bucket|\(cacheKey)|\(timeBucket)") }
-        } catch {
-            if !Self.isCancellation(error), !filter.isLocked, let saved = TimelineCache.load([AssetSummary].self, name: "bucket|\(cacheKey)|\(timeBucket)") {
-                assetsByBucket[timeBucket] = saved
-                return
-            }
-            guard !Self.isCancellation(error) else {
-                // Transient — often a Lazy container discarding an early measurement
-                // pass. Retry once rather than leaving this month permanently blank.
-                await retryLoadAssets(for: timeBucket)
-                return
-            }
-            errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
-        }
+        if let assets = await fetchBucket(timeBucket) { assetsByBucket[timeBucket] = assets }
     }
 
-    private func retryLoadAssets(for timeBucket: String) async {
-        guard assetsByBucket[timeBucket] == nil else { return }
+    /// Fetches one month's photos without storing them, falling back to the saved copy when
+    /// the server can't be reached. Nil when nothing could be loaded.
+    /// Assigning a @Published property redraws the grid even when the value is unchanged.
+    private func clearError() { if errorMessage != nil { errorMessage = nil } }
+
+    private func fetchBucket(_ timeBucket: String) async -> [AssetSummary]? {
         do {
-            assetsByBucket[timeBucket] = try await service.fetchAssets(inBucket: timeBucket, filter: filter)
-            errorMessage = nil
+            let assets = try await service.fetchAssets(inBucket: timeBucket, filter: filter)
+            clearError()
+            if !filter.isLocked { TimelineCache.save(assets, name: "bucket|\(cacheKey)|\(timeBucket)") }
+            return assets
         } catch {
-            guard !Self.isCancellation(error) else { return }
-            errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
+            if !Self.isCancellation(error), !filter.isLocked, let saved = TimelineCache.load([AssetSummary].self, name: "bucket|\(cacheKey)|\(timeBucket)") {
+                return saved
+            }
+            guard Self.isCancellation(error) else {
+                errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
+                return nil
+            }
+            // Transient — often a Lazy container discarding an early measurement
+            // pass. Retry once rather than leaving this month permanently blank.
+            do {
+                let assets = try await service.fetchAssets(inBucket: timeBucket, filter: filter)
+                clearError()
+                return assets
+            } catch {
+                if !Self.isCancellation(error) {
+                    errorMessage = "Couldn't load photos for \(timeBucket).\n\(FriendlyError.message(for: error))"
+                }
+                return nil
+            }
         }
     }
 
@@ -122,24 +128,54 @@ final class PhotoLibraryModel: ObservableObject {
         return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
     }
 
+    /// How long to wait before showing what has arrived so far. Every redraw lays out every photo
+    /// loaded, so the bigger the library gets the less often it's worth doing.
+    static func flushInterval(loadedCount: Int) -> Double {
+        0.4 + Double(loadedCount) / 40_000
+    }
+
     /// Loads every bucket's assets up front, for the "All Photos"/"Years" views which
     /// need a single flat or year-grouped list rather than one lazily-loaded month at a time.
     func loadAllAssets() async {
         // A few months at a time rather than strictly one after another — a library
         // spanning years is hundreds of requests, and waiting on each in turn made
         // All Photos / Years take far longer than it needed to.
+        //
+        // Months are shown in batches, not one by one: each redraw lays out every photo loaded
+        // so far, and doing that after each of 300 months made a big library crawl.
         let pending = buckets.map(\.timeBucket).filter { assetsByBucket[$0] == nil }
-        await withTaskGroup(of: Void.self) { group in
+        var arrived: [String: [AssetSummary]] = [:]
+        var loadedCount = assetsByBucket.values.reduce(0) { $0 + $1.count }
+        var lastFlush = ContinuousClock.now
+
+        func flush() {
+            guard !arrived.isEmpty else { return }
+            var merged = assetsByBucket
+            for (bucket, assets) in arrived where merged[bucket] == nil { merged[bucket] = assets }
+            assetsByBucket = merged
+            arrived = [:]
+            lastFlush = ContinuousClock.now
+        }
+
+        await withTaskGroup(of: (String, [AssetSummary]?).self) { group in
             var iterator = pending.makeIterator()
             for _ in 0..<6 {
                 guard let next = iterator.next() else { break }
-                group.addTask { await self.loadAssets(for: next) }
+                group.addTask { (next, await self.fetchBucket(next)) }
             }
-            while await group.next() != nil {
+            while let (bucket, assets) = await group.next() {
+                if let assets {
+                    arrived[bucket] = assets
+                    loadedCount += assets.count
+                }
+                let waited = lastFlush.duration(to: .now)
+                let target = Duration.seconds(Self.flushInterval(loadedCount: loadedCount))
+                if waited >= target { flush() }
                 guard !Task.isCancelled, let next = iterator.next() else { continue }
-                group.addTask { await self.loadAssets(for: next) }
+                group.addTask { (next, await self.fetchBucket(next)) }
             }
         }
+        flush()
     }
 
     /// All currently-loaded assets, newest first, across every bucket — only complete

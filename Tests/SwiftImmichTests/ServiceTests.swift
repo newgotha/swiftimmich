@@ -14,6 +14,14 @@ final class MockURLProtocol: URLProtocol {
 
     nonisolated(unsafe) static var handler: ((Captured) -> (status: Int, body: String))?
     nonisolated(unsafe) static var captured: [Captured] = []
+    /// For binary bodies (images) and slow replies; used instead of `handler` when set.
+    nonisolated(unsafe) static var binaryHandler: ((Captured) -> (status: Int, body: Data, delay: TimeInterval))?
+    private static let statsLock = NSLock()
+    nonisolated(unsafe) private static var active = 0
+    nonisolated(unsafe) private static var peak = 0
+    nonisolated(unsafe) private static var total = 0
+    static var stats: (peak: Int, total: Int) { statsLock.lock(); defer { statsLock.unlock() }; return (peak, total) }
+    static func resetStats() { statsLock.lock(); active = 0; peak = 0; total = 0; statsLock.unlock() }
 
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "immich.test" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -35,6 +43,18 @@ final class MockURLProtocol: URLProtocol {
         let captured = Captured(method: request.httpMethod ?? "", path: request.url?.path ?? "", headers: headers, body: body)
         Self.captured.append(captured)
 
+        if let binary = Self.binaryHandler {
+            let reply = binary(captured)
+            Self.statsLock.lock(); Self.active += 1; Self.total += 1; Self.peak = max(Self.peak, Self.active); Self.statsLock.unlock()
+            let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "image/png"])!
+            DispatchQueue.global().asyncAfter(deadline: .now() + reply.delay) { [self] in
+                Self.statsLock.lock(); Self.active -= 1; Self.statsLock.unlock()
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: reply.body)
+                client?.urlProtocolDidFinishLoading(self)
+            }
+            return
+        }
         let reply = Self.handler?(captured) ?? (status: 404, body: "{}")
         let response = HTTPURLResponse(
             url: request.url!, statusCode: reply.status, httpVersion: "HTTP/1.1",

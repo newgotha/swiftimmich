@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0
+
+- **Freeze protection.** If the window ever stops responding, the app now saves a technical snapshot and offers to attach a summary to **Help > Report a Problem…**, so a freeze can be diagnosed instead of guessed at.
+- **Faster with big libraries.**
+  - All Photos and Years now show months in batches while they load, instead of redrawing the whole grid after every month. Loading a large library is far smoother.
+  - Photos are laid out about 45% faster, and search results grouped by month or year no longer re-sort for every section.
+  - Scrolling fast through a large library no longer starts hundreds of downloads at once: at most 8 run together, the photos on screen come first, and photos you've already scrolled past are skipped. Thumbnail memory is also capped by size, not just by count.
+
 ## 2.1.0
 
 - **Dark mode.** The app now follows your Mac's light or dark setting. Settings (⌘,) has an **Appearance** switch — Match System, Light or Dark.

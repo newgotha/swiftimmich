@@ -119,11 +119,11 @@ struct JustifiedAssetGridView: View {
     }
 
     private func registerLayout() {
-        let rows = JustifiedLayout.rows(for: assets, containerWidth: containerWidth, targetRowHeight: CGFloat(zoom.value), spacing: spacing)
+        let (assets, width, height, spacing) = (assets, containerWidth, CGFloat(zoom.value), spacing)
         selection.register(navigationToken, GridLayoutEntry(
             order: order,
             assets: assets,
-            rows: GridNavigator.cells(for: rows, spacing: spacing),
+            rows: { GridNavigator.cells(for: JustifiedLayout.rows(for: assets, containerWidth: width, targetRowHeight: height, spacing: spacing), spacing: spacing) },
             filter: filter,
             activate: { activate($0) }
         ))

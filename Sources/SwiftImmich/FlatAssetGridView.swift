@@ -24,35 +24,7 @@ struct FlatAssetGridView: View {
     @State private var grouping: TimelineGrouping = .all
     @EnvironmentObject private var selection: GridSelection
 
-    private struct DateGroup {
-        let title: String
-        let assets: [AssetSummary]
-    }
-
-    private static let monthFormat: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter
-    }()
-
-    private static let yearFormat: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy"
-        return formatter
-    }()
-
-    /// The photos newest first, split by month or year.
-    private var groups: [DateGroup] {
-        let formatter = grouping == .years ? Self.yearFormat : Self.monthFormat
-        var order: [String] = []
-        var buckets: [String: [AssetSummary]] = [:]
-        for asset in assets.sorted(by: { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }) {
-            let key = asset.date.map { formatter.string(from: $0) } ?? "Unknown Date"
-            if buckets[key] == nil { order.append(key) }
-            buckets[key, default: []].append(asset)
-        }
-        return order.map { DateGroup(title: $0, assets: buckets[$0] ?? []) }
-    }
+    private var groups: [FlatGrouping.Group] { FlatGrouping.groups(for: assets, by: grouping) }
 
     private func groupHeader(_ title: String) -> some View {
         SectionHeader(title: title)
@@ -95,9 +67,10 @@ struct FlatAssetGridView: View {
                         .padding(.trailing, 16)
                 } else {
                     LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
-                        ForEach(groups, id: \.title) { group in
+                        let sections = groups
+                        ForEach(Array(sections.enumerated()), id: \.element.title) { index, group in
                             Section {
-                                JustifiedAssetGridView(assets: group.assets, service: service, order: groups.firstIndex(where: { $0.title == group.title }) ?? 0, onDelete: onDelete)
+                                JustifiedAssetGridView(assets: group.assets, service: service, order: index, onDelete: onDelete)
                             } header: {
                                 groupHeader(group.title)
                             }

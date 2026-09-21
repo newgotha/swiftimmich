@@ -226,7 +226,7 @@ final class GridFocusTests: XCTestCase {
         let selection = GridSelection()
         selection.register(UUID(), GridLayoutEntry(
             order: 0, assets: assets,
-            rows: [[.init(id: "a", centerX: 50), .init(id: "b", centerX: 150)], [.init(id: "c", centerX: 50), .init(id: "d", centerX: 150)]],
+            rows: { [[.init(id: "a", centerX: 50), .init(id: "b", centerX: 150)], [.init(id: "c", centerX: 50), .init(id: "d", centerX: 150)]] },
             filter: .none, activate: { _ in }
         ))
         return (selection, assets)
@@ -269,7 +269,7 @@ final class GridFocusTests: XCTestCase {
     func testAPageChangeDropsAGridThatLeftTheScreen() {
         let (selection, _) = selectionWithGrid()
         let token = UUID()
-        selection.register(token, GridLayoutEntry(order: 1, assets: [], rows: [], filter: .none, activate: { _ in }))
+        selection.register(token, GridLayoutEntry(order: 1, assets: [], rows: { [] }, filter: .none, activate: { _ in }))
         selection.unregister(token)
         XCTAssertEqual(selection.layouts.count, 1)
     }

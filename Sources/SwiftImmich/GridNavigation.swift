@@ -10,7 +10,8 @@ struct GridLayoutEntry {
     /// Sections are ordered top to bottom by this (a month's position in the timeline).
     let order: Int
     let assets: [AssetSummary]
-    let rows: [[Cell]]
+    /// Worked out on demand (when an arrow key is pressed), not kept up to date as the grid redraws.
+    let rows: () -> [[Cell]]
     let filter: TimelineFilter
     let activate: (AssetSummary) -> Void
 }
@@ -91,7 +92,7 @@ extension GridSelection {
         let entries = orderedLayouts
         guard !entries.isEmpty else { return false }
         let start = focusedId ?? hovered?.asset.id
-        guard let next = GridNavigator.move(from: start, direction, rows: entries.flatMap(\.rows)) else { return true }
+        guard let next = GridNavigator.move(from: start, direction, rows: entries.flatMap { $0.rows() }) else { return true }
 
         if extend {
             select([start, next].compactMap { $0 }.compactMap(asset(withId:)))

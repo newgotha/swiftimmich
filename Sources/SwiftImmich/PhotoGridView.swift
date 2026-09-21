@@ -213,10 +213,11 @@ struct PhotoGridView: View {
 
     private var yearSections: some View {
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
-            ForEach(yearGroups, id: \.year) { group in
+            let groups = yearGroups
+            ForEach(Array(groups.enumerated()), id: \.element.year) { index, group in
                 Section {
                     let assets = group.buckets.flatMap { model.assetsByBucket[$0.timeBucket] ?? [] }
-                    JustifiedAssetGridView(assets: assets, service: model.service, order: yearIndex(of: group.year), onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
+                    JustifiedAssetGridView(assets: assets, service: model.service, order: index, onDelete: model.removeAsset, albumContext: albumContext, filter: model.filter)
                 } header: {
                     sectionHeader(group.year)
                         .id(group.year)
@@ -275,10 +276,6 @@ struct PhotoGridView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         SectionHeader(title: title)
-    }
-
-    private func yearIndex(of year: String) -> Int {
-        yearGroups.firstIndex(where: { $0.year == year }) ?? 0
     }
 
     private var yearGroups: [(year: String, buckets: [Components.Schemas.TimeBucketsResponseDto])] {

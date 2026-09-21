@@ -19,57 +19,48 @@ enum JustifiedLayout {
     ) -> [JustifiedRow] {
         guard containerWidth > 0, !assets.isEmpty else { return [] }
 
-        var rows: [JustifiedRow] = []
-        var currentItems: [(AssetSummary, CGFloat)] = []
-        var currentWidth: CGFloat = 0
-
-        func naturalWidth(for asset: AssetSummary) -> CGFloat {
-            let ratio = asset.ratio > 0 ? asset.ratio : 1
-            return targetRowHeight * CGFloat(ratio)
+        // Works on index ranges so each photo is copied once, into its final row, however
+        // many photos there are.
+        func naturalWidth(_ index: Int) -> CGFloat {
+            let ratio = assets[index].ratio
+            return targetRowHeight * CGFloat(ratio > 0 ? ratio : 1)
         }
 
-        for asset in assets {
-            let width = naturalWidth(for: asset)
-            let spacingSoFar = CGFloat(currentItems.count) * spacing
+        func row(_ range: Range<Int>, naturalTotal: CGFloat) -> JustifiedRow {
+            let totalSpacing = CGFloat(range.count - 1) * spacing
+            guard naturalTotal > 0 else {
+                return JustifiedRow(items: range.map { (assets[$0], naturalWidth($0)) }, height: targetRowHeight)
+            }
+            let scale = (containerWidth - totalSpacing) / naturalTotal
+            return JustifiedRow(items: range.map { (assets[$0], naturalWidth($0) * scale) }, height: targetRowHeight * scale)
+        }
 
-            if !currentItems.isEmpty, currentWidth + width + spacingSoFar > containerWidth {
-                rows.append(finalizeRow(currentItems, containerWidth: containerWidth, spacing: spacing, targetHeight: targetRowHeight))
-                currentItems = [(asset, width)]
+        var rows: [JustifiedRow] = []
+        rows.reserveCapacity(assets.count / 3 + 1)
+        var start = 0
+        var currentWidth: CGFloat = 0
+
+        for index in assets.indices {
+            let width = naturalWidth(index)
+            let spacingSoFar = CGFloat(index - start) * spacing
+            if index > start, currentWidth + width + spacingSoFar > containerWidth {
+                rows.append(row(start..<index, naturalTotal: currentWidth))
+                start = index
                 currentWidth = width
             } else {
-                currentItems.append((asset, width))
                 currentWidth += width
             }
         }
 
-        if !currentItems.isEmpty {
-            let totalSpacing = CGFloat(currentItems.count - 1) * spacing
-            let naturalTotal = currentItems.reduce(0) { $0 + $1.1 } + totalSpacing
-            // Only stretch the trailing row to fill the width if it's already close to full —
-            // a half-empty last row (e.g. one leftover photo) looks better left at natural size.
-            if naturalTotal >= containerWidth * 0.5 {
-                rows.append(finalizeRow(currentItems, containerWidth: containerWidth, spacing: spacing, targetHeight: targetRowHeight))
-            } else {
-                rows.append(JustifiedRow(items: currentItems.map { ($0.0, $0.1) }, height: targetRowHeight))
-            }
+        let last = start..<assets.count
+        let totalSpacing = CGFloat(last.count - 1) * spacing
+        // Only stretch the trailing row to fill the width if it's already close to full —
+        // a half-empty last row (e.g. one leftover photo) looks better left at natural size.
+        if currentWidth + totalSpacing >= containerWidth * 0.5 {
+            rows.append(row(last, naturalTotal: currentWidth))
+        } else {
+            rows.append(JustifiedRow(items: last.map { (assets[$0], naturalWidth($0)) }, height: targetRowHeight))
         }
-
         return rows
-    }
-
-    private static func finalizeRow(
-        _ items: [(AssetSummary, CGFloat)],
-        containerWidth: CGFloat,
-        spacing: CGFloat,
-        targetHeight: CGFloat
-    ) -> JustifiedRow {
-        let totalSpacing = CGFloat(items.count - 1) * spacing
-        let naturalTotalWidth = items.reduce(0) { $0 + $1.1 }
-        guard naturalTotalWidth > 0 else {
-            return JustifiedRow(items: items.map { ($0.0, $0.1) }, height: targetHeight)
-        }
-        let scale = (containerWidth - totalSpacing) / naturalTotalWidth
-        let scaledHeight = targetHeight * scale
-        return JustifiedRow(items: items.map { ($0.0, $0.1 * scale) }, height: scaledHeight)
     }
 }
