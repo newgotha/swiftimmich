@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0
+
+- **Photo editing.** The Edit panel now has one-tap **Looks** (Vivid, Dramatic, Warm, Cool, Fade, Chrome, Instant, Mono, Silvertone and Noir, with live previews and a strength slider), plus **Shadows**, **Highlights**, **Warmth**, **Sharpen** and **Vignette** sliders and a **Straighten** slider that levels a tilted horizon without leaving empty corners. Looks and these adjustments are saved as a new photo or over the original, like colour edits.
+- **Crop presets.** Freeform, Original, Square, 3:2, 4:3, 16:9 and 5:4, with a portrait/landscape switch; the shape holds as you drag the corners.
+- **Revert to Original.** Photos with a saved crop, rotation or mirror can be put back with one button.
+
 ## 2.3.0
 
 - **Album tools.** Download a whole album as a zip file (large albums are split into several), drag albums into your own order in the sidebar, and give an album a description.
