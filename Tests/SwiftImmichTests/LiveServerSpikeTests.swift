@@ -169,6 +169,26 @@ final class LiveServerSpikeTests: XCTestCase {
             XCTAssertTrue(shown.contains { $0.id == plain && $0.stackId == nil }, "D: the original is back, no longer stacked")
             XCTAssertFalse(shown.contains { $0.id == plainCopy }, "D: the copy is gone")
             print("SPIKE D remove edit: ok")
+
+            // E. Taking the cover out of a stack (the viewer's "Remove This Photo from Stack") works.
+            let base = try await make("base", 0.3)
+            let cover = try await make("cover", 0.6)
+            let third = try await make("third", 0.85)
+            let stack5 = try await service.createStackInfo(assetIds: [cover, base, third])
+            stacks.append(stack5.id)
+            try await service.takeOutOfStack(assetId: cover, stackId: stack5.id)
+            shown = try await timeline()
+            XCTAssertTrue(shown.contains { $0.id == cover && $0.stackId == nil }, "E: the cover is on its own again")
+            XCTAssertTrue(shown.contains { ($0.id == base || $0.id == third) && $0.stackCount == 2 }, "E: the others are still stacked together")
+            // A photo that isn't the cover comes out the ordinary way.
+            let latest = try await service.fetchAssetInfo(assetId: base).stack?.value1
+            if let latest {
+                let other = latest.primaryAssetId == base ? third : base
+                try await service.takeOutOfStack(assetId: other, stackId: latest.id)
+                shown = try await timeline()
+                XCTAssertTrue(shown.contains { $0.id == other && $0.stackId == nil }, "E: a non-cover photo also comes out")
+            }
+            print("SPIKE E take out of stack: ok")
         } catch {
             XCTFail("probe failed: \(AppLog.describe(error))")
         }

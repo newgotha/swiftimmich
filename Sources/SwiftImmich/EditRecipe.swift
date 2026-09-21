@@ -106,6 +106,19 @@ extension ImageAdjustments: Codable {
 }
 
 extension ImmichService {
+    /// Takes one photo out of a stack, leaving it in the library. Immich refuses to take a stack's cover
+    /// out, so for the cover the stack is dissolved and the other photos are grouped again without it.
+    func takeOutOfStack(assetId: String, stackId: String) async throws {
+        let stack = try await fetchStack(id: stackId)
+        guard stack.primaryAssetId == assetId else {
+            try await removeAsset(assetId, fromStack: stackId)
+            return
+        }
+        let remaining = stack.assets.map(\.id).filter { $0 != assetId }
+        try await deleteStacks(ids: [stackId])
+        if remaining.count >= 2 { try await createStackInfo(assetIds: remaining) }
+    }
+
     /// Removes an edited copy and its stack membership, leaving the original as it was.
     ///
     /// Immich won't take a stack's cover out of its stack, so the stack is dissolved and, if other photos
